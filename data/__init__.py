@@ -1,0 +1,29 @@
+import torch
+SND_DTYPE = 'float32'
+
+from .dataset import AudioDataset
+
+def create_dataloader(phase, sample_rate, T, dataset_opt, logger):
+    '''create dataloader '''
+    dataset = AudioDataset(dataroot=dataset_opt['dataroot'],
+                           datatype=dataset_opt['datatype'],
+                           snr=dataset_opt['snr'],
+                           sample_rate=sample_rate,
+                           T = T,
+                           split=phase,
+                           data_len=dataset_opt['data_len'],
+                           )
+
+    logger.info('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__,
+                                                           dataset_opt['name']))
+    return torch.utils.data.DataLoader(
+            dataset,
+            batch_size=dataset_opt['batch_size'],
+            shuffle=dataset_opt['use_shuffle'],
+            num_workers=dataset_opt['num_workers'],
+            pin_memory=True)
+
+
+
+
+
