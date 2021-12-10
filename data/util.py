@@ -11,7 +11,7 @@ def load_wav(path, T):
     only use first T sample points
     """
     sr, clean_snd = wavfile.read(path)
-    clean_snd = torch.FloatTensor(np.ascontiguousarray(clean_snd[:T]))
+    clean_snd = torch.FloatTensor(clean_snd[:T].copy())
     return sr, torch.unsqueeze(clean_snd, 0)
 
 

@@ -116,6 +116,7 @@ class DDPM():
         init_weights(unet, init_type=init_type)
 
         model = SpeechDenoisingUNet(unet, encoder, decoder)
+        model.to(self.device)
 
         netG = diffusion.GaussianDiffusion(
             model,
