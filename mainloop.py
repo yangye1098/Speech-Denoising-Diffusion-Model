@@ -96,10 +96,13 @@ def mainloop(phase, args):
 
                         model.eval(val_data, continous=False)
                         sounds = model.get_current_sounds()
+                        print(sounds['Noisy'].shape)
+                        print(sounds['Clean'].shape)
+                        print(sounds['SR'].shape)
 
                         # log sisnr
                         avg_sisnr += Metrics.calculate_sisnr(
-                            sounds['Noisy'], sounds['SR'])
+                             sounds['SR'], sounds['Clean'])
 
                     avg_sisnr = avg_sisnr / idx
 

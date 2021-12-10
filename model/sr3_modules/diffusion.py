@@ -173,24 +173,22 @@ class GaussianDiffusion(nn.Module):
     @torch.no_grad()
     def p_sample_loop(self, x_in, continous=False):
         device = self.betas.device
-        sample_inter = (1 | (self.num_timesteps//10))
+        sample_inter = (1 | (self.num_timesteps//5))
         if not self.conditional:
+            condition_x = None
             shape = x_in
             sample = torch.randn(shape, device=device)
-            samples = sample
-            for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                sample = self.p_sample(sample, i)
-                if i % sample_inter == 0:
-                    samples = torch.cat([samples, sample], dim=0)
+            samples = [sample]
         else:
             condition_x = x_in
             shape = x_in.shape
             sample = torch.randn(shape, device=device)
-            samples = condition_x
-            for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                sample = self.p_sample(sample, i, condition_x=condition_x)
-                if i % sample_inter == 0:
-                    samples = torch.cat([samples, sample], dim=0)
+            samples = [condition_x]
+
+        for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
+            sample = self.p_sample(sample, i, condition_x=condition_x)
+            if i % sample_inter == 0:
+                samples.append(sample)
         if continous:
             return samples
         else:
@@ -202,7 +200,7 @@ class GaussianDiffusion(nn.Module):
         return self.p_sample_loop(shape, continous)
 
     @torch.no_grad()
-    def super_resolution(self, x_in, continous=False):
+    def denoise(self, x_in, continous=False):
         # denoise from input x_in
         return self.p_sample_loop(x_in, continous)
 

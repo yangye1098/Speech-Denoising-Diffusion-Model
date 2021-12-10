@@ -154,10 +154,10 @@ class DDPM():
         self.netG.eval()
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
-                self.SR = self.netG.module.super_resolution(
+                self.SR = self.netG.module.denoise(
                     self.data['Noisy'], continous)
             else:
-                self.SR = self.netG.super_resolution(
+                self.SR = self.netG.denoise(
                     self.data['Noisy'], continous)
 
     def sample(self, shape, continous=False):
