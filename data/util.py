@@ -2,6 +2,7 @@ import os
 import torch.utils.data
 import numpy as np
 from scipy.io import wavfile
+from random import shuffle
 
 from . import SND_DTYPE
 
@@ -37,5 +38,6 @@ def generate_inventory(path, sound_type):
                 snd_file = os.path.join(dirpath, fname)
                 snd_files.append(snd_file)
     assert snd_files, '{:s} has no valid sound file'.format(path)
-    return sorted(snd_files)
+    shuffle(snd_files)
+    return snd_files
 
