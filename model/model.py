@@ -244,12 +244,12 @@ class DDPM():
             if isinstance(self.netG, nn.DataParallel):
                 network = network.module
             network.load_state_dict(torch.load(
-                gen_path), strict=(not self.opt['model']['finetune_norm']))
+                gen_path,  map_location=self.device),  strict=(not self.opt['model']['finetune_norm']))
             # network.load_state_dict(torch.load(
             #     gen_path), strict=False)
-            if self.opt['phase'] == 'train':
+            if self.phase == 'train':
                 # optimizer
-                opt = torch.load(opt_path)
+                opt = torch.load(opt_path, map_location=self.device)
                 self.optG.load_state_dict(opt['optimizer'])
                 self.begin_step = opt['iter']
                 self.begin_epoch = opt['epoch']
