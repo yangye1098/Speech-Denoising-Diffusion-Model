@@ -39,7 +39,6 @@ def mainloop(phase, args):
     # dataset
     if phase == 'train':
         train_loader = create_dataloader('train', opt['sample_rate'], T, opt['datasets']['train'], logger)
-        val_loader = create_dataloader('val', opt['sample_rate'], T, opt['datasets']['val'], logger)
     elif phase == 'val':
         val_loader = create_dataloader('val', opt['sample_rate'], T, opt['datasets']['val'], logger)
     elif phase == 'test':
@@ -91,6 +90,8 @@ def mainloop(phase, args):
 
                 # validation
                 if current_step % opt['train']['val_freq'] == 0:
+                    # recreate validation dataset each time to get random data
+                    val_loader = create_dataloader('val', opt['sample_rate'], T, opt['datasets']['val'], logger)
                     avg_sisnr = 0.0
                     idx = 0
                     result_path = '{}/{}'.format(opt['path']['results'], current_epoch)
@@ -103,9 +104,6 @@ def mainloop(phase, args):
 
                         model.eval(val_data, continous=False)
                         sounds = model.get_current_sounds()
-                        print(sounds['Noisy'].shape)
-                        print(sounds['Clean'].shape)
-                        print(sounds['SR'].shape)
 
                         # log sisnr
                         avg_sisnr += Metrics.calculate_sisnr(
