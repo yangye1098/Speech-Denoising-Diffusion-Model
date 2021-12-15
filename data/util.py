@@ -30,14 +30,13 @@ def save_wav(wav_tensor:torch.FloatTensor, sr, path):
 
 def generate_inventory(path, sound_type):
     assert os.path.isdir(path), '{:s} is not a valid directory'.format(path)
-    snd_files = []
+    snd_names = []
     for dirpath, _, fnames in os.walk(path):
         for fname in fnames:
             _, ext = os.path.splitext(fname)
             if ext.lower() == '.'+sound_type:
-                snd_file = os.path.join(dirpath, fname)
-                snd_files.append(snd_file)
-    assert snd_files, '{:s} has no valid sound file'.format(path)
-    shuffle(snd_files)
-    return snd_files
+                snd_names.append(fname)
+    assert snd_names, '{:s} has no valid sound file'.format(path)
+    shuffle(snd_names)
+    return snd_names
 

@@ -25,3 +25,21 @@ def calculate_sisnr(s_hat, s):
                             / torch.sum(e_noise ** 2, dim=2, keepdim=True)) # [B, 1, T]
 
     return torch.squeeze(torch.mean(sisnr))
+
+
+if __name__ == '__main__':
+    from data import AudioDataset
+    snr = 0
+
+    dataroot = f'../data/data/wsj0_si_tr_{snr}'
+    datatype = 'wav'
+    dataset_tr = AudioDataset(dataroot, datatype, snr, 33224)
+    dataset_tr.playIdx(0)
+    s = dataset_tr.__getitem__(0)
+    print(s['Clean'].shape)
+    clean = torch.unsqueeze(s['Clean'], dim=0)
+    noisy = torch.unsqueeze(s['Noisy'], dim=0)
+
+    print(calculate_sisnr(clean, clean))
+    print(calculate_sisnr(noisy, clean))
+

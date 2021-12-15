@@ -10,7 +10,7 @@ import numpy as np
 from scipy.io import wavfile
 from scipy.signal import resample
 
-from . import SND_DTYPE
+from data import SND_DTYPE
 
 def rmsNormalize(sound):
     sound = sound.astype(SND_DTYPE)
@@ -65,7 +65,7 @@ def addnoise_worker(wav_file, noise, snd_duration,  snr, sample_rate, min_durati
 
     # scale to [-1,1] float array
 
-    scale_factor = np.max([np.abs(sound), np.abs(noise)])
+    scale_factor = np.max([np.abs(sound), np.abs(mixture)])
     sound = sound/scale_factor
     mixture = mixture/scale_factor
 

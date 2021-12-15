@@ -66,6 +66,7 @@ def mainloop(phase, args):
 
     if phase == 'train':
         start = time.time()
+        start_step = current_step
         n_iter = opt['train']['n_iter']
         while current_step < n_iter:
             current_epoch += 1
@@ -78,7 +79,7 @@ def mainloop(phase, args):
                 # log
                 if current_step % opt['train']['print_freq'] == 0:
                     lapsed = time.time() - start
-                    time_left =lapsed * ((n_iter / current_step ) - 1)
+                    time_left =lapsed * (((n_iter - start_step) / (current_step-start_step)) - 1)
                     time_left = timedelta(seconds=time_left)
                     logs = model.get_current_log()
                     message = '<epoch:{:3d}, iter:{:8,d}, lapsed:{:.1f} remaining:{}> '.format(

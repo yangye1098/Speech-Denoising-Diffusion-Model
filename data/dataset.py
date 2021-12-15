@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from scipy.io import wavfile
 from . import SND_DTYPE
 from .util import generate_inventory, load_wav
+from pathlib import Path
 
 
 try:
@@ -24,6 +25,7 @@ class AudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.split = split
 
+
         if datatype == 'lmdb':
             self.env = lmdb.open(dataroot, readonly=True, lock=False,
                                  readahead=False, meminit=False)
@@ -35,11 +37,10 @@ class AudioDataset(Dataset):
             else:
                 self.data_len = min(self.data_len, self.dataset_len)
         elif datatype == 'wav':
-            self.noisy_inventory =generate_inventory(
-                '{}/noisy_{}'.format(dataroot, snr), datatype)
-            self.clean_inventory = generate_inventory(
-                '{}/clean'.format(dataroot), datatype)
-            self.dataset_len = len(self.clean_inventory)
+            self.clean_path = Path('{}/clean'.format(dataroot))
+            self.noisy_path = Path('{}/noisy_{}'.format(dataroot, snr))
+            self.inventory = generate_inventory( self.clean_path, datatype)
+            self.dataset_len = len(self.inventory)
             if self.data_len <= 0:
                 self.data_len = self.dataset_len
             else:
@@ -66,9 +67,9 @@ class AudioDataset(Dataset):
                 clean_snd = np.frombuffer(clean_snd_bytes, dtype=SND_DTYPE)
                 noisy_snd = np.frombuffer(noisy_snd_bytes, dtype=SND_DTYPE)
         else:
-            sr, clean_snd = load_wav(self.clean_inventory[index], self.T)
+            sr, clean_snd = load_wav(self.clean_path/self.inventory[index], self.T)
             assert(sr==self.sample_rate)
-            sr, noisy_snd = load_wav(self.noisy_inventory[index], self.T)
+            sr, noisy_snd = load_wav(self.noisy_path/self.inventory[index], self.T)
             assert (sr == self.sample_rate)
         return {'Clean': clean_snd, 'Noisy': noisy_snd, 'Index': index}
 
