@@ -56,7 +56,7 @@ def mainloop(phase, args):
     current_step = model.begin_step
     current_epoch = model.begin_epoch
 
-    if opt['path']['resume_state'] & phase == 'train':
+    if opt['path']['resume_state'] and phase == 'train':
         logger.info('Resuming training from epoch: {}, iter: {}.'.format(
             current_epoch, current_step))
 
