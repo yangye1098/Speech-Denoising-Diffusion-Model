@@ -1,5 +1,5 @@
 import argparse
-import mainloop
+from mainloop import mainloop
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -8,6 +8,6 @@ if __name__ == '__main__':
 
     # parse configs
     args = parser.parse_args()
-    mainloop('var', args)
+    mainloop('val', args)
 
 
