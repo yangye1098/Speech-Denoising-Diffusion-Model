@@ -237,7 +237,6 @@ class GaussianDiffusion(nn.Module):
         else:
             x_recon = self.denoise_fn(x_noisy, continuous_sqrt_alpha_cumprod, x_in['Noisy'])
 
-
         loss = self.loss_func(noise, x_recon)
         return loss
 

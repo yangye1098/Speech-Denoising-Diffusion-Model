@@ -36,10 +36,15 @@ if __name__ == '__main__':
     dataset_tr = AudioDataset(dataroot, datatype, snr, 33224)
     dataset_tr.playIdx(0)
     s = dataset_tr.__getitem__(0)
-    print(s['Clean'].shape)
     clean = torch.unsqueeze(s['Clean'], dim=0)
     noisy = torch.unsqueeze(s['Noisy'], dim=0)
 
+    for i in range(1,4):
+        s = dataset_tr.__getitem__(i)
+        clean = torch.cat([clean, torch.unsqueeze(s['Clean'], 0)], dim=0)
+        noisy = torch.cat([noisy, torch.unsqueeze(s['Noisy'], dim=0)], dim = 0)
+
+    print(clean.shape)
     print(calculate_sisnr(clean, clean))
     print(calculate_sisnr(noisy, clean))
 

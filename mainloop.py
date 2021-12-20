@@ -78,7 +78,7 @@ def mainloop(phase, args):
                 # log
                 if current_step % opt['train']['print_freq'] == 0:
                     lapsed = time.time() - start
-                    time_left =lapsed * (((n_iter - start_step) / (current_step-start_step)) - 1)
+                    time_left = lapsed * (((n_iter - start_step) / (current_step-start_step)) - 1)
                     time_left = timedelta(seconds=time_left)
                     logs = model.get_current_log()
                     message = '<epoch:{:3d}, iter:{:8,d}, lapsed:{:.1f} remaining:{}> '.format(

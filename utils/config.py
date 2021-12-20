@@ -43,14 +43,14 @@ def parse(args):
 
     # debug
     if args.debug:
-        opt['train']['n_iter'] = 20008
+        opt['train']['n_iter'] = 8
         opt['train']['val_freq'] = 4
         opt['train']['print_freq'] = 2
         opt['train']['save_checkpoint_freq'] = 4
         opt['datasets']['train']['batch_size'] = 4
         opt['datasets']['val']['batch_size'] = 4
-        opt['model']['beta_schedule']['train']['n_timestep'] = 2000
-        opt['model']['beta_schedule']['val']['n_timestep'] = 2000
+        opt['model']['beta_schedule']['train']['n_timestep'] = 10
+        opt['model']['beta_schedule']['val']['n_timestep'] = 10
         opt['datasets']['train']['data_len'] = 8
         opt['datasets']['val']['data_len'] = 4
 
