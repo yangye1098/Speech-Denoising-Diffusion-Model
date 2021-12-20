@@ -141,22 +141,21 @@ def mainloop(phase, args):
         os.makedirs(result_path, exist_ok=True)
         for idx,  data in enumerate(loader):
 
-            model.eval(data, continous=True)
+            model.eval(data, continous=False)
             sounds = model.get_current_sounds()
 
             # save the sound during the process
 
             sr_snd = sounds['SR']
-            sample_num = sr_snd.shape[0]
-            for iter in range(0, sample_num):
-                for b in range(batch_size):
-                    save_wav(sr_snd[iter][b,:,:], '{}/{}_sr_{}.wav'.format(result_path, idx, iter))
+            #sample_num = sr_snd.shape[0]
+            #for iter in range(0, sample_num):
 
             for b in range(batch_size):
+                save_wav(sr_snd[b, :, :], '{}/{}_sr_b{}.wav'.format(result_path, idx, b))
                 save_wav(
-                    sounds['Clean'][b,:,:], '{}/{}_clean.wav'.format(result_path,idx))
+                    sounds['Clean'][b,:,:], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
                 save_wav(
-                    sounds['Noisy'][b,:,:], '{}/{}_noisy.wav'.format(result_path, idx))
+                    sounds['Noisy'][b,:,:], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
 
             # metrics
             sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd[-1], sounds['Clean'])

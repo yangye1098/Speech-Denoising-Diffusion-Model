@@ -190,9 +190,9 @@ class GaussianDiffusion(nn.Module):
             if i % sample_inter == 0:
                 samples.append(sample)
         if continous:
-            return samples
+            return samples # list
         else:
-            return samples[-1]
+            return samples[-1] # tensor
 
     @torch.no_grad()
     def sample(self, shape, continous=False):
