@@ -24,7 +24,7 @@ def save_wav(wav_tensor:torch.FloatTensor, sr, path):
     wav_array = torch.squeeze(wav_tensor).numpy()
 
     if SND_DTYPE == 'float32':
-        wavfile.write(path ,sr,np.ascontiguousarray(wav_array, dtype='float32'))
+        wavfile.write(path ,sr ,np.ascontiguousarray(wav_array, dtype='float32'))
     else:
         raise NotImplementedError
 
