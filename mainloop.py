@@ -142,7 +142,7 @@ def mainloop(phase, args):
         os.makedirs(result_path, exist_ok=True)
         for idx,  data in enumerate(loader):
 
-            model.eval(continous=True)
+            model.eval(data, continous=True)
             sounds = model.get_current_sounds()
 
             # save the sound during the process
