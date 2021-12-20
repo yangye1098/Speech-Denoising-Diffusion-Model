@@ -136,7 +136,6 @@ def mainloop(phase, args):
             loader = val_loader
             logger.info('Begin Model Evaluation.')
 
-        assert(batch_size == 1)
         sisnr_vec = torch.zeros(len(loader))
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
@@ -150,12 +149,14 @@ def mainloop(phase, args):
             sr_snd = sounds['SR']
             sample_num = sr_snd.shape[0]
             for iter in range(0, sample_num):
-                save_wav(sr_snd[iter], '{}/{}_sr_{}.wav'.format(result_path, idx, iter))
+                for b in range(batch_size):
+                    save_wav(sr_snd[iter][b,:,:], '{}/{}_sr_{}.wav'.format(result_path, idx, iter))
 
-            save_wav(
-                sounds['Clean'], '{}/{}_clean.wav'.format(result_path,idx))
-            save_wav(
-                sounds['Noisy'], '{}/{}_noisy.wav'.format(result_path, idx))
+            for b in range(batch_size):
+                save_wav(
+                    sounds['Clean'][b,:,:], '{}/{}_clean.wav'.format(result_path,idx))
+                save_wav(
+                    sounds['Noisy'][b,:,:], '{}/{}_noisy.wav'.format(result_path, idx))
 
             # metrics
             sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd[-1], sounds['Clean'])
