@@ -56,8 +56,8 @@ def mainloop(phase, args):
     current_step = model.begin_step
     current_epoch = model.begin_epoch
 
-    if opt['path']['resume_state']:
-        logger.info('Resuming from epoch: {}, iter: {}.'.format(
+    if opt['path']['resume_state'] & phase == 'train':
+        logger.info('Resuming training from epoch: {}, iter: {}.'.format(
             current_epoch, current_step))
 
     model.set_new_noise_schedule(
@@ -128,11 +128,11 @@ def mainloop(phase, args):
     elif phase == 'val' or phase == 'test':
 
         if phase == 'test':
-            batch_size = opt['datasets']['test']
+            batch_size = opt['datasets']['test']['batch_size']
             loader = test_loader
             logger.info('Begin Model Test.')
         elif phase == 'val':
-            batch_size = opt['datasets']['val']
+            batch_size = opt['datasets']['val']['batch_size']
             loader = val_loader
             logger.info('Begin Model Evaluation.')
 
