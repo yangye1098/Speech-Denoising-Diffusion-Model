@@ -158,7 +158,7 @@ def mainloop(phase, args):
                     sounds['Noisy'][b,:,:], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
 
             # metrics
-            sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd[-1], sounds['Clean'])
+            sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd, sounds['Clean'])
 
         avg_sisnr = torch.mean(sisnr_vec)
         # log
