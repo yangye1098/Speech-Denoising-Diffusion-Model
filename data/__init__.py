@@ -3,15 +3,13 @@ SND_DTYPE = 'float32'
 
 from .dataset import AudioDataset
 
-def create_dataloader(phase, sample_rate, T, dataset_opt, logger):
+def create_dataloader(sample_rate, datatype, T, dataset_opt, logger):
     '''create dataloader '''
     dataset = AudioDataset(dataroot=dataset_opt['dataroot'],
-                           datatype=dataset_opt['datatype'],
+                           datatype=datatype,
                            snr=dataset_opt['snr'],
                            sample_rate=sample_rate,
-                           T = T,
-                           split=phase,
-                           data_len=dataset_opt['data_len'],
+                           T = T
                            )
 
     logger.info('Dataset [{:s} - {:s}] is created.'.format(dataset.__class__.__name__,

@@ -1,13 +1,10 @@
-from io import BytesIO
-import lmdb
+import torchaudio
+from torch.utils.data import Dataset
+from pathlib import Path
+from random import shuffle
 import numpy as np
 import torch
-from torch.utils.data import Dataset
-from scipy.io import wavfile
-from . import SND_DTYPE
-from .util import generate_inventory, load_wav
-from pathlib import Path
-
+from scipy import signal
 
 try:
     import simpleaudio as sa
@@ -15,77 +12,118 @@ try:
 except ModuleNotFoundError:
     hasAudio = False
 
+def generate_inventory(path, file_type='.wav'):
+    path = Path(path)
+    assert path.is_dir(), '{:s} is not a valid directory'.format(path)
+
+    file_paths = path.glob('*'+file_type)
+    file_names = [ file_path.name for file_path in file_paths ]
+    assert file_names, '{:s} has no valid {} file'.format(path, file_type)
+    shuffle(file_names)
+    return file_names
 
 class AudioDataset(Dataset):
-    def __init__(self, dataroot, datatype, snr, T, sample_rate=8000, split='train', data_len=-1):
+    def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
+        if datatype not in ['.wav', '.spec.npy']:
+            raise NotImplementedError
         self.datatype = datatype
-        self.data_len = data_len
         self.snr = snr
-        self.T = T
         self.sample_rate = sample_rate
-        self.split = split
+        self.T = T
 
+        self.clean_path = Path('{}/clean'.format(dataroot))
+        self.noisy_path = Path('{}/noisy_{}'.format(dataroot, snr))
 
-        if datatype == 'lmdb':
-            self.env = lmdb.open(dataroot, readonly=True, lock=False,
-                                 readahead=False, meminit=False)
-            # init the datalen
-            with self.env.begin(write=False) as txn:
-                self.dataset_len = int(txn.get("length".encode("utf-8")))
-            if self.data_len <= 0:
-                self.data_len = self.dataset_len
-            else:
-                self.data_len = min(self.data_len, self.dataset_len)
-        elif datatype == 'wav':
-            self.clean_path = Path('{}/clean'.format(dataroot))
-            self.noisy_path = Path('{}/noisy_{}'.format(dataroot, snr))
-            self.inventory = generate_inventory( self.clean_path, datatype)
-            self.dataset_len = len(self.inventory)
-            if self.data_len <= 0:
-                self.data_len = self.dataset_len
-            else:
-                self.data_len = min(self.data_len, self.dataset_len)
-        else:
-            raise NotImplementedError(
-                'data_type [{:s}] is not recognized.'.format(datatype))
+        self.inventory = generate_inventory(self.clean_path, datatype)
+        self.data_len = len(self.inventory)
 
     def __len__(self):
         return self.data_len
 
     def __getitem__(self, index):
 
-        if self.datatype == 'lmdb':
-            with self.env.begin(write=False) as txn:
-                clean_snd_bytes = txn.get(
-                    'clean_{:d}'.format(index).encode('utf-8')
-                )
-                noisy_snd_bytes = txn.get(
-                    'noisy_{}_{:d}'.format(
-                        self.snr, index).encode('utf-8')
-                )
-
-                clean_snd = np.frombuffer(clean_snd_bytes, dtype=SND_DTYPE)
-                noisy_snd = np.frombuffer(noisy_snd_bytes, dtype=SND_DTYPE)
-        else:
-            sr, clean_snd = load_wav(self.clean_path/self.inventory[index], self.T)
+        if self.datatype == '.wav':
+            clean, sr = torchaudio.load(self.clean_path/self.inventory[index], num_frames=self.T)
             assert(sr==self.sample_rate)
-            sr, noisy_snd = load_wav(self.noisy_path/self.inventory[index], self.T)
+            noisy, sr = torchaudio.load(self.noisy_path/self.inventory[index], num_frames=self.T)
             assert (sr == self.sample_rate)
-        return {'Clean': clean_snd, 'Noisy': noisy_snd, 'Index': index}
+        elif self.datatype == '.spec.npy':
+            # load the two grams
+            clean = torch.from_numpy(np.load(self.clean_path/self.inventory[index]))
+            noisy = torch.from_numpy(np.load(self.noisy_path/self.inventory[index]))
 
-    def playIdx(self, idx):
+
+        return clean, noisy
+
+    def to_audio(self, grams, N):
+        """
+        similar to STFTDecoder.decode
+        :param grams: [C, N, N]
+        :return:
+        """
+        assert N == grams.shape[1] and N == grams.shape[2]
+
+        Zxx = torch.zeros([1, N+1, N], dtype=torch.cfloat)
+        z_temp = torch.movedim(grams, 0, 2)
+        z_temp = 10 ** (z_temp * 10 - 10)
+
+        Zxx[:, 1:, : ] = torch.view_as_complex(z_temp.contiguous())
+        _, sound = signal.istft(Zxx, self.sample_rate)
+        return sound
+
+
+    def playIdx(self, idx, N):
         if hasAudio:
-            item = self.__getitem__(idx)
-            play_obj = sa.play_buffer(item['Clean'].numpy(), 1, 32//8, self.sample_rate)
+            clean, noisy = self.__getitem__(idx)
+            if self.datatype == '.wav':
+                clean_sound = clean.numpy()
+                noisy_sound = noisy.numpy()
+
+            elif self.datatype == '.spec.npy':
+                clean_sound = self.to_audio(clean, N)
+                noisy_sound = self.to_audio(noisy, N)
+
+            play_obj = sa.play_buffer(clean_sound, 1, 32//8, self.sample_rate)
             play_obj.wait_done()
-            play_obj = sa.play_buffer(item['Noisy'].numpy(), 1, 32//8, self.sample_rate)
+            play_obj = sa.play_buffer(noisy_sound, 1, 32//8, self.sample_rate)
             play_obj.wait_done()
 
 
 
 if __name__ == '__main__':
-    snr = 5
-    dataroot = f'./data/wsj0_si_tr_{snr}'
-    datatype = 'wav'
+    from torch.utils.data import DataLoader
+    import matplotlib.pyplot as plt
+
+    N = 128
+    L = 256
+    stride = 128
+    sample_rate = 8000
+    snr = 0
+    dataroot = f'data/wsj0_si_tr_{snr}'
+    datatype = '.spec.npy'
     dataset_tr = AudioDataset(dataroot, datatype, snr)
-    dataset_tr.playIdx(0)
+    dataset_tr.playIdx(0, N)
+
+    dataloader = DataLoader(dataset_tr, batch_size=2)
+    clean, noisy = next(iter(dataloader))
+    print(clean.shape) # should be [2, 128, 128]
+
+
+    def plotSpectrogram(grams, N):
+        grams_original = 10**(10 * grams - 10)
+        spectrogram = np.sum([np.square(grams_original[0, :, :]), np.square(grams_original[1, :, :])])
+
+
+        plt.figure()
+        c = plt.pcolormesh(np.arange(0,N), np.arange(1,N+1), 20*np.log10(spectrogram) )
+        plt.colorbar(c)
+        plt.xlabel('Time')
+        plt.ylabel('Frequency')
+        plt.show(block=False)
+
+    plotSpectrogram(clean[0, :, :, :], N)
+    plotSpectrogram(noisy[0, :, :, :], N)
+    clean_sound = dataset_tr.to_audio(clean[0, :, :, :], N)
+    plt.figure()
+    plt.specgram(np.squeeze(clean_sound), Fs=sample_rate, NFFT=N+1)
+    plt.show()

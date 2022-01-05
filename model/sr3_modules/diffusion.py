@@ -200,24 +200,24 @@ class GaussianDiffusion(nn.Module):
         return self.p_sample_loop(shape, continous)
 
     @torch.no_grad()
-    def denoise(self, x_in, continous=False):
+    def denoise(self, conditional_input, continous=False):
         # denoise from input x_in
-        return self.p_sample_loop(x_in, continous)
+        return self.p_sample_loop(conditional_input, continous)
 
-    def q_sample(self, x_start, continuous_sqrt_alpha_cumprod, noise=None):
-        noise = default(noise, lambda: torch.randn_like(x_start))
+    def q_sample(self, target, continuous_sqrt_alpha_cumprod, noise=None):
+        noise = default(noise, lambda: torch.randn_like(target))
 
         # random gamma
         return (
-            continuous_sqrt_alpha_cumprod * x_start +
+            continuous_sqrt_alpha_cumprod * target +
             (1 - continuous_sqrt_alpha_cumprod**2).sqrt() * noise
         )
 
-    def p_losses(self, x_in, noise=None):
+    def p_losses(self, target, conditional_input, noise=None):
         # 0 dim is the batch size
-        x_start = x_in['Clean']
-        alpha_shape = np.ones(x_start.ndim, dtype='int')
-        alpha_shape[0] = x_start.size(0)
+
+        alpha_shape = np.ones(target.ndim, dtype='int')
+        alpha_shape[0] = target.size(0)
         t = np.random.randint(1, self.num_timesteps + 1)
 
         continuous_sqrt_alpha_cumprod = torch.FloatTensor(
@@ -226,19 +226,19 @@ class GaussianDiffusion(nn.Module):
                 self.sqrt_alphas_cumprod_prev[t],
                 size=alpha_shape
             )
-        ).to(x_start.device)
+        ).to(target.device)
 
-        noise = default(noise, lambda: torch.randn_like(x_start))
+        noise = default(noise, lambda: torch.randn_like(target))
         x_noisy = self.q_sample(
-            x_start=x_start, continuous_sqrt_alpha_cumprod=continuous_sqrt_alpha_cumprod, noise=noise)
+            target=target, continuous_sqrt_alpha_cumprod=continuous_sqrt_alpha_cumprod, noise=noise)
 
         if not self.conditional:
             x_recon = self.denoise_fn(x_noisy, continuous_sqrt_alpha_cumprod)
         else:
-            x_recon = self.denoise_fn(x_noisy, continuous_sqrt_alpha_cumprod, x_in['Noisy'])
+            x_recon = self.denoise_fn(x_noisy, continuous_sqrt_alpha_cumprod, conditional_input)
 
         loss = self.loss_func(noise, x_recon)
         return loss
 
-    def forward(self, x, *args, **kwargs):
-        return self.p_losses(x, *args, **kwargs)
+    def forward(self, target, conditional_input, *args, **kwargs):
+        return self.p_losses(target, conditional_input, *args, **kwargs)

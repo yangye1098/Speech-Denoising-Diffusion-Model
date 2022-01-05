@@ -61,6 +61,10 @@ def addnoise_worker(wav_file, noise, snd_duration,  snr, sample_rate, min_durati
     # rms normalize
     sound = rmsNormalize(sound)
     #
+    if noise is None:
+        noise = np.random.randn(int(sample_rate * snd_duration))
+        noise = rmsNormalize(noise)
+
     mixture = addnoiseSNR(sound, noise, snr)
 
     # scale to [-1,1] float array
@@ -147,8 +151,6 @@ if __name__ == '__main__':
 
     args.out = '{}_{}'.format(args.out, args.snr)
     # generate noise, change noise type in the future
-    noise = np.random.randn(int(args.sample_rate * args.duration))
-    noise = rmsNormalize(noise)
-
+    noise = None
     prepare(args.path, args.out, noise, snd_duration=args.duration, n_worker=args.n_worker,
             snr=args.snr, sample_rate=args.sample_rate, lmdb_save=args.lmdb)

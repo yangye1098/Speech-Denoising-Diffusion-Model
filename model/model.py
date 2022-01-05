@@ -3,7 +3,7 @@ import os
 
 import torch
 import torch.nn as nn
-from .encoder_decoder import ConvDecoder, ConvEncoder
+from .encoder_decoder import ConvDecoder, ConvEncoder, STFTEncoder, STFTDecoder
 from .util import init_weights
 
 ####################
@@ -19,9 +19,16 @@ class SpeechDenoisingUNet(nn.Module):
 
     def forward(self, x_noisy, time, condition_x=None):
         time = torch.unsqueeze(time, 1)
-        snd_rep = self.encoder(x_noisy, condition_x)
-        denoised_rep = self.unet(snd_rep, time)
-        return self.decoder(denoised_rep)
+        if self.encoder is not None and self.decoder is not None:
+            snd_rep = self.encoder(x_noisy, condition_x)
+            denoised_rep = self.unet(snd_rep, time)
+            return self.decoder(denoised_rep)
+        else:
+            if condition_x is not None:
+                return self.unet(torch.cat([x_noisy, condition_x], dim=1), time)
+            else:
+                return self.unet(x_noisy, time)
+
 
 
 class DDPM():
@@ -94,6 +101,21 @@ class DDPM():
                 stride=model_opt['encoder']['conv']['stride'],
             )
             image_size = model_opt['encoder']['conv']['N']
+
+        elif model_opt['encoder']['type'] == 'stft':
+                encoder = STFTEncoder(
+                    N=model_opt['encoder']['stft']['N'],
+                    L=model_opt['encoder']['stft']['L'],
+                    stride=model_opt['encoder']['stft']['stride'],
+                    sample_rate=self.opt['sample_rate']
+                )
+                decoder = STFTDecoder(
+                    N=model_opt['encoder']['stft']['N'],
+                    L=model_opt['encoder']['stft']['L'],
+                    stride=model_opt['encoder']['stft']['stride'],
+                    sample_rate=self.opt['sample_rate']
+                )
+                image_size = model_opt['encoder']['conv']['N']
         else:
             raise NotImplementedError
 
@@ -109,14 +131,19 @@ class DDPM():
             image_size=image_size
         )
 
-
         # initial weights of the unet
         init_type = 'orthogonal'
         self.logger.info('Initialization method [{:s}]'.format(init_type))
         init_weights(unet, init_type=init_type)
 
-        model = SpeechDenoisingUNet(unet, encoder, decoder)
-        model.to(self.device)
+        if model_opt['encoder']['type'] == 'conv':
+            model = SpeechDenoisingUNet(unet, encoder, decoder)
+            model.to(self.device)
+        elif model_opt['encoder']['type'] == 'stft':
+            model = SpeechDenoisingUNet(unet, None, None)
+            model.to(self.device)
+        else:
+            raise NotImplementedError
 
         netG = diffusion.GaussianDiffusion(
             model,
@@ -133,14 +160,13 @@ class DDPM():
 
         return netG
 
-    def train(self, data):
-        self.data = self.set_device(data)
+    def train(self, target, noisy):
 
         self.netG.train()
         self.optG.zero_grad()
-        l_pix = self.netG(self.data)
+        l_pix = self.netG(target, noisy)
         # need to average in multi-gpu
-        nElement = torch.numel(self.data['Clean'])
+        nElement = torch.numel(target)
         l_pix = l_pix.sum()/nElement
         l_pix.backward()
         self.optG.step()
@@ -149,25 +175,25 @@ class DDPM():
         self.log_dict['l_pix'] = l_pix.item()
 
 
-    def eval(self, data, continous=False):
-        self.data = self.set_device(data)
+    def eval(self, noisy, continuous=False):
         self.netG.eval()
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
-                self.SR = self.netG.module.denoise(
-                    self.data['Noisy'], continous)
+                SR = self.netG.module.denoise(
+                    noisy, continuous)
             else:
-                self.SR = self.netG.denoise(
-                    self.data['Noisy'], continous)
+                SR = self.netG.denoise(
+                    noisy, continuous)
+        return SR
 
     def sample(self, shape, continous=False):
         self.netG.eval()
         with torch.no_grad():
             if isinstance(self.netG, nn.DataParallel):
-                self.SR = self.netG.module.sample(shape, continous)
+                SR = self.netG.module.sample(shape, continous)
             else:
-                self.SR = self.netG.sample(shape, continous)
-        self.netG.train()
+                SR = self.netG.sample(shape, continous)
+        return SR
 
     def set_loss(self):
         if isinstance(self.netG, nn.DataParallel):
@@ -186,17 +212,6 @@ class DDPM():
 
     def get_current_log(self):
         return self.log_dict
-
-    def get_current_sounds(self, sample=False):
-        out_dict = OrderedDict()
-        if sample:
-            out_dict['SAM'] = self.SR.detach().float().cpu()
-        else:
-            out_dict['SR'] = self.SR.detach().float().cpu()
-            out_dict['Noisy'] = self.data['Noisy'].detach().float().cpu()
-            out_dict['Clean'] = self.data['Clean'].detach().float().cpu()
-
-        return out_dict
 
     def print_network(self):
         s, n = self.get_network_description(self.netG)
@@ -253,19 +268,6 @@ class DDPM():
                 self.optG.load_state_dict(opt['optimizer'])
                 self.begin_step = opt['iter']
                 self.begin_epoch = opt['epoch']
-
-    def set_device(self, x):
-        if isinstance(x, dict):
-            for key, item in x.items():
-                if item is not None:
-                    x[key] = item.to(self.device)
-        elif isinstance(x, list):
-            for item in x:
-                if item is not None:
-                    item = item.to(self.device)
-        else:
-            x = x.to(self.device)
-        return x
 
     def get_network_description(self, network):
         '''Get the string and total parameters of the network'''

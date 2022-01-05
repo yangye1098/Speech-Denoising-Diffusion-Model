@@ -27,22 +27,41 @@ def mainloop(phase, args):
     logger.info(Config.dict2str(opt))
     tb_logger = SummaryWriter(log_dir=opt['path']['tb_logger'])
 
+    datatype = opt['datatype']
+    sample_rate = opt['sample_rate']
     # Calculate time points T to use
-    if opt['model']['encoder']['type'] == 'conv':
-        N = opt['model']['encoder']['conv']['N']
-        L = opt['model']['encoder']['conv']['L']
-        stride = opt['model']['encoder']['conv']['stride']
-        # to make K equals L, T needs to be
-        T = (N - 1) * stride + L
+    if datatype == '.wav':
+        if opt['model']['encoder']['type'] == 'conv':
+            N = opt['model']['encoder']['conv']['N']
+            L = opt['model']['encoder']['conv']['L']
+            stride = opt['model']['encoder']['conv']['stride']
+            # to make K equals L, T needs to be
+            T = (N - 1) * stride + L
+
+        elif opt['model']['encoder']['type'] == 'stft':
+            N = opt['model']['encoder']['stft']['N']
+            L = opt['model']['encoder']['stft']['L']
+            stride = opt['model']['encoder']['stft']['stride']
+            # to make K equals L, T needs to be
+            T = (N - 1) * stride
+        else:
+            raise NotImplementedError
+    elif datatype == '.spec.npy':
+        # from prepare_spectrogram
+        N = 128
+        L = 256
+        stride = 128
+        T = -1
     else:
         raise NotImplementedError
+
     # dataset
     if phase == 'train':
-        train_loader = create_dataloader('train', opt['sample_rate'], T, opt['datasets']['train'], logger)
+        train_loader = create_dataloader(sample_rate, datatype, T, opt['datasets']['train'], logger)
     elif phase == 'val':
-        val_loader = create_dataloader('val', opt['sample_rate'], T, opt['datasets']['val'], logger)
+        val_loader = create_dataloader(sample_rate, datatype, T, opt['datasets']['val'], logger)
     elif phase == 'test':
-        test_loader = create_dataloader('test', opt['sample_rate'], T, opt['datasets']['test'], logger)
+        test_loader = create_dataloader(sample_rate, datatype, T, opt['datasets']['test'], logger)
     else:
         raise NotImplementedError
     logger.info('Initial Dataloader Finished')
@@ -67,14 +86,16 @@ def mainloop(phase, args):
         start = time.time()
         start_step = current_step
         n_iter = opt['train']['n_iter']
+        val_iter = opt['train']['val_iter']
         while current_step < n_iter:
             current_epoch += 1
-            for _, train_data in enumerate(train_loader):
+            for _, (target, noisy) in enumerate(train_loader):
+                target, noisy = target.to(model.device), noisy.to(model.device)
                 current_step += 1
                 if current_step > n_iter:
                     break
 
-                model.train(train_data)
+                model.train(target, noisy)
                 # log
                 if current_step % opt['train']['print_freq'] == 0:
                     lapsed = time.time() - start
@@ -91,7 +112,7 @@ def mainloop(phase, args):
                 # validation
                 if current_step % opt['train']['val_freq'] == 0:
                     # recreate validation dataset each time to get random data
-                    val_loader = create_dataloader('val', opt['sample_rate'], T, opt['datasets']['val'], logger)
+                    val_loader = create_dataloader(sample_rate, datatype, T, opt['datasets']['val'], logger)
                     avg_sisnr = 0.0
                     idx = 0
                     result_path = '{}/{}'.format(opt['path']['results'], current_epoch)
@@ -99,15 +120,17 @@ def mainloop(phase, args):
 
                     model.set_new_noise_schedule(
                         opt['model']['beta_schedule']['val'], schedule_phase='val')
-                    for _,  val_data in enumerate(val_loader):
+                    for _,  (target, noisy) in enumerate(val_loader):
+                        if idx >= val_iter:
+                            break
+                        target, noisy = target.to(model.device), noisy.to(model.device)
                         idx += 1
 
-                        model.eval(val_data, continous=False)
-                        sounds = model.get_current_sounds()
+                        SR = model.eval(noisy, continuous=False)
 
                         # log sisnr
                         avg_sisnr += Metrics.calculate_sisnr(
-                             sounds['SR'], sounds['Clean'])
+                             SR, target)
 
                     avg_sisnr = avg_sisnr / idx
 
@@ -139,26 +162,22 @@ def mainloop(phase, args):
         sisnr_vec = torch.zeros(len(loader))
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
-        for idx,  data in enumerate(loader):
+        for idx,  (clean, noisy) in enumerate(loader):
 
-            model.eval(data, continous=False)
-            sounds = model.get_current_sounds()
+            clean, noisy = clean.to(model.device), noisy.to(model.device)
+            sr_snd = model.eval(noisy, continuous=False)
 
-            # save the sound during the process
-
-            sr_snd = sounds['SR']
-            #sample_num = sr_snd.shape[0]
             #for iter in range(0, sample_num):
 
             for b in range(batch_size):
                 save_wav(sr_snd[b, :, :], opt['sample_rate'], '{}/{}_sr_b{}.wav'.format(result_path, idx, b))
                 save_wav(
-                    sounds['Clean'][b,:,:], opt['sample_rate'], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
+                    clean[b,:,:], opt['sample_rate'], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
                 save_wav(
-                    sounds['Noisy'][b,:,:], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
+                    noisy[b,:,:], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
 
             # metrics
-            sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd, sounds['Clean'])
+            sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd, clean)
 
         avg_sisnr = torch.mean(sisnr_vec)
         # log
