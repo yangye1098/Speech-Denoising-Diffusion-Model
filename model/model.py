@@ -120,9 +120,11 @@ class DDPM():
         elif model_opt['encoder']['type'] == 'grams':
             encoder = None
             decoder = None
+            image_size = model_opt['encoder']['grams']['N']
         elif model_opt['encoder']['type'] == 'melgram':
             encoder = None
             decoder = None
+            image_size = model_opt['encoder']['melgram']['N']
         else:
             raise NotImplementedError
 

@@ -30,33 +30,35 @@ def mainloop(phase, args):
     datatype = opt['datatype']
     sample_rate = opt['sample_rate']
     # Calculate time points T to use
-    if datatype == '.wav':
-        if opt['model']['encoder']['type'] == 'conv':
-            N = opt['model']['encoder']['conv']['N']
-            L = opt['model']['encoder']['conv']['L']
-            stride = opt['model']['encoder']['conv']['stride']
-            # to make K equals L, T needs to be
-            T = (N - 1) * stride + L
+    if opt['model']['encoder']['type'] == 'conv':
+        N = opt['model']['encoder']['conv']['N']
+        L = opt['model']['encoder']['conv']['L']
+        stride = opt['model']['encoder']['conv']['stride']
+        # to make K equals L, T needs to be
+        T = (N - 1) * stride + L
 
-        elif opt['model']['encoder']['type'] == 'stft':
-            N = opt['model']['encoder']['stft']['N']
-            L = opt['model']['encoder']['stft']['L']
-            stride = opt['model']['encoder']['stft']['stride']
-            # to make K equals L, T needs to be
-            T = (N - 1) * stride
-        else:
-            raise NotImplementedError
-    elif datatype == '.spec.npy':
+    elif opt['model']['encoder']['type'] == 'stft':
+        N = opt['model']['encoder']['stft']['N']
+        L = opt['model']['encoder']['stft']['L']
+        stride = opt['model']['encoder']['stft']['stride']
+        # to make K equals L, T needs to be
+        T = (N - 1) * stride
+
+    elif opt['model']['encoder']['type'] == 'melgram':
+        # from prepare_melspectrogram
+        N = opt['model']['encoder']['melgram']['N']
+        L = opt['model']['encoder']['melgram']['L']
+        stride = opt['model']['encoder']['melgram']['stride']
+        # to make K equals L, T needs to be
+        T = (N - 1) * stride
+
+    elif opt['model']['encoder']['type'] == 'grams':
         # from prepare_spectrogram
-        N = 128
-        L = 256
-        stride = 128
-        T = -1
-    elif datatype == '.mel.npy':
-        N = 128
-        L = 512
-        stride = 256
-        T = (N-1)*stride
+        N = opt['model']['encoder']['grams']['N']
+        L = opt['model']['encoder']['grams']['L']
+        stride = opt['model']['encoder']['grams']['stride']
+        # to make K equals L, T needs to be
+        T = (N - 1) * stride
     else:
         raise NotImplementedError
 

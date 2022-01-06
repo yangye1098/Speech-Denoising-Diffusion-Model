@@ -1,7 +1,7 @@
 {
     "name": "sddm_wsj0",
     "sample_rate": 8000,
-    "datatype": ".spec.npy",
+    "datatype": ".mel.npy",
     "gpu_ids": null,
     "path": { //set the path
         "log": "logs",
@@ -33,7 +33,7 @@
         "which_model_G": "sr3", // use the ddpm or sr3 network structure
         "finetune_norm": false,
         "encoder": {
-            "type": "stft",
+            "type": "melgram",
             "conv": {
                 "N": 128,
                 "L": 512,
@@ -43,11 +43,16 @@
                 "N": 128,
                 "L": 256,
                 "stride": 128
+            },
+            "melgram": {
+                "N": 128,
+                "L": 512,
+                "stride": 256
             }
         },
         "unet": {
-            "in_channel": 4,
-            "out_channel": 2,
+            "in_channel": 2,
+            "out_channel": 1,
             "inner_channel": 64,
             "channel_multiplier": [
                 1,
