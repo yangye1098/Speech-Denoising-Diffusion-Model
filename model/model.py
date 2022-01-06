@@ -116,6 +116,13 @@ class DDPM():
                     sample_rate=self.opt['sample_rate']
                 )
                 image_size = model_opt['encoder']['conv']['N']
+
+        elif model_opt['encoder']['type'] == 'grams':
+            encoder = None
+            decoder = None
+        elif model_opt['encoder']['type'] == 'melgram':
+            encoder = None
+            decoder = None
         else:
             raise NotImplementedError
 
@@ -136,14 +143,8 @@ class DDPM():
         self.logger.info('Initialization method [{:s}]'.format(init_type))
         init_weights(unet, init_type=init_type)
 
-        if model_opt['encoder']['type'] == 'conv':
-            model = SpeechDenoisingUNet(unet, encoder, decoder)
-            model.to(self.device)
-        elif model_opt['encoder']['type'] == 'stft':
-            model = SpeechDenoisingUNet(unet, None, None)
-            model.to(self.device)
-        else:
-            raise NotImplementedError
+        model = SpeechDenoisingUNet(unet, encoder, decoder)
+        model.to(self.device)
 
         netG = diffusion.GaussianDiffusion(
             model,

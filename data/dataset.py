@@ -24,7 +24,7 @@ def generate_inventory(path, file_type='.wav'):
 
 class AudioDataset(Dataset):
     def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
-        if datatype not in ['.wav', '.spec.npy']:
+        if datatype not in ['.wav', '.spec.npy', '.mel.npy']:
             raise NotImplementedError
         self.datatype = datatype
         self.snr = snr
@@ -47,10 +47,11 @@ class AudioDataset(Dataset):
             assert(sr==self.sample_rate)
             noisy, sr = torchaudio.load(self.noisy_path/self.inventory[index], num_frames=self.T)
             assert (sr == self.sample_rate)
-        elif self.datatype == '.spec.npy':
+        elif self.datatype == '.spec.npy' or self.datatype == '.mel.npy':
             # load the two grams
             clean = torch.from_numpy(np.load(self.clean_path/self.inventory[index]))
             noisy = torch.from_numpy(np.load(self.noisy_path/self.inventory[index]))
+
 
 
         return clean, noisy
@@ -93,21 +94,30 @@ class AudioDataset(Dataset):
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
+    import librosa
 
     N = 128
-    L = 256
-    stride = 128
+    #L = 256
+    #stride = 128
     sample_rate = 8000
     snr = 0
     dataroot = f'data/wsj0_si_tr_{snr}'
-    datatype = '.spec.npy'
+    datatype = '.mel.npy'
     dataset_tr = AudioDataset(dataroot, datatype, snr)
-    dataset_tr.playIdx(0, N)
+    #dataset_tr.playIdx(0, N)
 
     dataloader = DataLoader(dataset_tr, batch_size=2)
     clean, noisy = next(iter(dataloader))
     print(clean.shape) # should be [2, 128, 128]
 
+    def plotMel(gram):
+        fig, axs = plt.subplots(1, 1)
+        axs.set_title('MelSpectrogram log, normalized ')
+        axs.set_ylabel('Melspectrogram')
+        axs.set_xlabel('frame')
+        im = axs.imshow(gram, origin='lower', aspect='auto')
+        fig.colorbar(im, ax=axs)
+        plt.show(block=False)
 
     def plotSpectrogram(grams, N):
         grams_original = 10**(10 * grams - 10)
@@ -121,9 +131,17 @@ if __name__ == '__main__':
         plt.ylabel('Frequency')
         plt.show(block=False)
 
-    plotSpectrogram(clean[0, :, :, :], N)
-    plotSpectrogram(noisy[0, :, :, :], N)
-    clean_sound = dataset_tr.to_audio(clean[0, :, :, :], N)
-    plt.figure()
-    plt.specgram(np.squeeze(clean_sound), Fs=sample_rate, NFFT=N+1)
-    plt.show()
+    if datatype == '.mel.npy':
+        plotMel(clean[0, 0, :, :])
+        plotMel(noisy[0, 0, :, :])
+        plt.show()
+
+
+    elif datatype == '.spec.npy':
+
+        plotSpectrogram(clean[0, :, :, :])
+        plotSpectrogram(noisy[0, :, :, :])
+        #clean_sound = dataset_tr.to_audio(clean[0, :, :, :], N)
+        #plt.figure()
+        #plt.specgram(np.squeeze(clean_sound), Fs=sample_rate, NFFT=N+1)
+        #plt.show()

@@ -52,6 +52,11 @@ def mainloop(phase, args):
         L = 256
         stride = 128
         T = -1
+    elif datatype == '.mel.npy':
+        N = 128
+        L = 512
+        stride = 256
+        T = (N-1)*stride
     else:
         raise NotImplementedError
 
