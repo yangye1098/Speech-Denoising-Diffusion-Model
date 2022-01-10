@@ -102,7 +102,7 @@ if __name__ == '__main__':
     sample_rate = 8000
     snr = 0
     dataroot = f'data/wsj0_si_tr_{snr}'
-    datatype = '.mel.npy'
+    datatype = '.spec.npy'
     dataset_tr = AudioDataset(dataroot, datatype, snr)
     #dataset_tr.playIdx(0, N)
 
@@ -113,22 +113,36 @@ if __name__ == '__main__':
     def plotMel(gram):
         fig, axs = plt.subplots(1, 1)
         axs.set_title('MelSpectrogram log, normalized ')
-        axs.set_ylabel('Melspectrogram')
+        axs.set_ylabel('Mel Frequency')
         axs.set_xlabel('frame')
         im = axs.imshow(gram, origin='lower', aspect='auto')
         fig.colorbar(im, ax=axs)
         plt.show(block=False)
 
-    def plotSpectrogram(grams, N):
+
+    def plotTwoGrams(grams):
+        fig, axs = plt.subplots(1, 2)
+        for i in [0, 1]:
+            axs[i].set_ylabel('frequency')
+            axs[i].set_xlabel('frame')
+            im = axs[i].imshow(grams[i,:,:], origin='lower', aspect='auto')
+            fig.colorbar(im, ax=axs[i])
+
+        axs[0].set_title('Real Gram, log, normalized')
+        axs[1].set_title('Phase Gram, log, normalized')
+        plt.show(block=False)
+
+
+    def plotSpectrogram(grams):
         grams_original = 10**(10 * grams - 10)
         spectrogram = np.sum([np.square(grams_original[0, :, :]), np.square(grams_original[1, :, :])])
 
-
         plt.figure()
-        c = plt.pcolormesh(np.arange(0,N), np.arange(1,N+1), 20*np.log10(spectrogram) )
-        plt.colorbar(c)
-        plt.xlabel('Time')
+        im = plt.imshow(20*np.log10(spectrogram), origin='lower', aspect='auto')
+        plt.colorbar(im)
+        plt.xlabel('Frame')
         plt.ylabel('Frequency')
+        plt.title('Spectrogram, db re 1')
         plt.show(block=False)
 
     if datatype == '.mel.npy':
@@ -139,9 +153,12 @@ if __name__ == '__main__':
 
     elif datatype == '.spec.npy':
 
-        plotSpectrogram(clean[0, :, :, :])
-        plotSpectrogram(noisy[0, :, :, :])
+        plotTwoGrams(clean[0, :, :, :])
+        plotTwoGrams(noisy[0, :, :, :])
         #clean_sound = dataset_tr.to_audio(clean[0, :, :, :], N)
         #plt.figure()
         #plt.specgram(np.squeeze(clean_sound), Fs=sample_rate, NFFT=N+1)
         #plt.show()
+        plotSpectrogram(clean[0, :, :, :])
+        plotSpectrogram(noisy[0, :, :, :])
+        plt.show()

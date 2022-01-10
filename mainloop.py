@@ -12,6 +12,8 @@ from model.model import DDPM
 
 from data import create_dataloader
 from data.util import save_wav
+from torchvision.utils import save_image
+import numpy as np
 
 def mainloop(phase, args):
 
@@ -158,36 +160,69 @@ def mainloop(phase, args):
     elif phase == 'val' or phase == 'test':
 
         if phase == 'test':
+            n_iter = opt['train']['val_iter']
             batch_size = opt['datasets']['test']['batch_size']
             loader = test_loader
             logger.info('Begin Model Test.')
         elif phase == 'val':
+            n_iter = opt['train']['val_iter']
             batch_size = opt['datasets']['val']['batch_size']
             loader = val_loader
             logger.info('Begin Model Evaluation.')
 
-        sisnr_vec = torch.zeros(len(loader))
+
+        if n_iter < 0:
+            metric_vec = torch.zeros(len(loader))
+        else:
+            metric_vec = torch.zeros(n_iter)
+
+
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
         for idx,  (clean, noisy) in enumerate(loader):
-
+            if n_iter >= 0 and idx > n_iter:
+                break
             clean, noisy = clean.to(model.device), noisy.to(model.device)
-            sr_snd = model.eval(noisy, continuous=False)
+            output = model.eval(noisy, continuous=False)
 
             #for iter in range(0, sample_num):
 
-            for b in range(batch_size):
-                save_wav(sr_snd[b, :, :], opt['sample_rate'], '{}/{}_sr_b{}.wav'.format(result_path, idx, b))
-                save_wav(
-                    clean[b,:,:], opt['sample_rate'], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
-                save_wav(
-                    noisy[b,:,:], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
+            if datatype == '.wav':
+                for b in range(batch_size):
+                    save_wav(output[b, :, :], opt['sample_rate'], '{}/{}_sr_b{}.wav'.format(result_path, idx, b))
+                    save_wav(
+                        clean[b, :, :], opt['sample_rate'], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
+                    save_wav(
+                        noisy[b, :, :], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
 
-            # metrics
-            sisnr_vec[idx] = Metrics.calculate_sisnr(sr_snd, clean)
 
-        avg_sisnr = torch.mean(sisnr_vec)
-        # log
-        logger.info('# evaluation # SISNR: {:.4e}'.format(avg_sisnr))
-        torch.save(sisnr_vec, '{}/sisnr_vec.pt'.format(result_path))
+                metric_vec[idx] = Metrics.calculate_sisnr(output, clean)
+            elif datatype == '.spec.npy':
+                for b in range(batch_size):
+                    np.save(output[b,:, :, :].cpu().numpy(), '{}/{}_sr_b{}.spec.npy'.format(result_path, idx, b))
+                    np.save(
+                        clean[b,:, :, :].cpu().numpy(), '{}/{}_clean_b{}.spec.npy'.format(result_path, idx, b))
+                    np.save(
+                        noisy[b,:, :, :].cpu().numpy(), '{}/{}_noisy_b{}.spec.npy'.format(result_path, idx, b))
+
+
+            elif datatype == '.mel.npy':
+                for b in range(batch_size):
+                    save_image(output[b, :, :, :], '{}/{}_sr_b{}.png'.format(result_path, idx, b))
+                    save_image(
+                        clean[b, :, :, :], '{}/{}_clean_b{}.png'.format(result_path, idx, b))
+                    save_image(
+                        noisy[b, :, :, :], '{}/{}_noisy_b{}.png'.format(result_path, idx, b))
+
+        if datatype == '.wav':
+        # metrics
+            avg_metric = torch.mean(metric_vec)
+            # log
+            logger.info('# evaluation # SISNR: {:.4e}'.format(avg_metric))
+            torch.save(metric_vec, '{}/sisnr_vec.pt'.format(result_path))
+        elif datatype == '.spec.npy':
+            pass
+        elif datatype == '.mel.npy':
+            pass
+
 
