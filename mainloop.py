@@ -203,11 +203,11 @@ def mainloop(phase, args):
                 metric_vec[idx] = Metrics.calculate_sisnr(output, clean)
             elif datatype == '.spec.npy':
                 for b in range(batch_size):
-                    np.save(output[b,:, :, :].cpu().numpy(), '{}/output/{}_b{}.spec.npy'.format(result_path, idx, b))
+                    np.save('{}/output/{}_b{}.spec.npy'.format(result_path, idx, b), output[b,:, :, :].cpu().numpy())
                     np.save(
-                        clean[b,:, :, :].cpu().numpy(), '{}/clean/{}_b{}.spec.npy'.format(result_path, idx, b))
+                        '{}/clean/{}_b{}.spec.npy'.format(result_path, idx, b), clean[b,:, :, :].cpu().numpy())
                     np.save(
-                        noisy[b,:, :, :].cpu().numpy(), '{}/noisy/{}_b{}.spec.npy'.format(result_path, idx, b))
+                        '{}/noisy/{}_b{}.spec.npy'.format(result_path, idx, b), noisy[b,:, :, :].cpu().numpy())
 
 
             elif datatype == '.mel.npy':
