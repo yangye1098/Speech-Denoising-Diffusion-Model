@@ -208,11 +208,11 @@ def mainloop(phase, args):
 
             elif datatype == '.mel.npy':
                 for b in range(batch_size):
-                    save_image(output[b, :, :, :], '{}/{}_sr_b{}.png'.format(result_path, idx, b))
+                    save_image(torch.filp(output[b, :, :, :], 2), '{}/{}_sr_b{}.png'.format(result_path, idx, b))
                     save_image(
-                        clean[b, :, :, :], '{}/{}_clean_b{}.png'.format(result_path, idx, b))
+                        torch.flip(clean[b, :, :, :], 2), '{}/{}_clean_b{}.png'.format(result_path, idx, b))
                     save_image(
-                        noisy[b, :, :, :], '{}/{}_noisy_b{}.png'.format(result_path, idx, b))
+                        torch.flip(noisy[b, :, :, :], 2), '{}/{}_noisy_b{}.png'.format(result_path, idx, b))
 
         if datatype == '.wav':
         # metrics
