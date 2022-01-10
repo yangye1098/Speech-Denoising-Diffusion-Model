@@ -179,6 +179,10 @@ def mainloop(phase, args):
 
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
+        result_path = '{}'.format(opt['path']['results'])
+        os.makedirs('{}/clean'.format(result_path), result_path, exist_ok=True)
+        os.makedirs('{}/noisy'.format(result_path), result_path, exist_ok=True)
+        os.makedirs('{}/output'.format(result_path), result_path, exist_ok=True)
         for idx,  (clean, noisy) in enumerate(loader):
             if n_iter >= 0 and idx > n_iter:
                 break
@@ -189,30 +193,30 @@ def mainloop(phase, args):
 
             if datatype == '.wav':
                 for b in range(batch_size):
-                    save_wav(output[b, :, :], opt['sample_rate'], '{}/{}_sr_b{}.wav'.format(result_path, idx, b))
+                    save_wav(output[b, :, :], opt['sample_rate'], '{}/output/{}_b{}.wav'.format(result_path, idx, b))
                     save_wav(
-                        clean[b, :, :], opt['sample_rate'], '{}/{}_clean_b{}.wav'.format(result_path, idx, b))
+                        clean[b, :, :], opt['sample_rate'], '{}/clean/{}_b{}.wav'.format(result_path, idx, b))
                     save_wav(
-                        noisy[b, :, :], opt['sample_rate'], '{}/{}_noisy_b{}.wav'.format(result_path, idx, b))
+                        noisy[b, :, :], opt['sample_rate'], '{}/noisy/{}_b{}.wav'.format(result_path, idx, b))
 
 
                 metric_vec[idx] = Metrics.calculate_sisnr(output, clean)
             elif datatype == '.spec.npy':
                 for b in range(batch_size):
-                    np.save(output[b,:, :, :].cpu().numpy(), '{}/{}_sr_b{}.spec.npy'.format(result_path, idx, b))
+                    np.save(output[b,:, :, :].cpu().numpy(), '{}/output/{}_b{}.spec.npy'.format(result_path, idx, b))
                     np.save(
-                        clean[b,:, :, :].cpu().numpy(), '{}/{}_clean_b{}.spec.npy'.format(result_path, idx, b))
+                        clean[b,:, :, :].cpu().numpy(), '{}/clean/{}_b{}.spec.npy'.format(result_path, idx, b))
                     np.save(
-                        noisy[b,:, :, :].cpu().numpy(), '{}/{}_noisy_b{}.spec.npy'.format(result_path, idx, b))
+                        noisy[b,:, :, :].cpu().numpy(), '{}/noisy/{}_b{}.spec.npy'.format(result_path, idx, b))
 
 
             elif datatype == '.mel.npy':
                 for b in range(batch_size):
-                    save_image(torch.flip(output[b, :, :, :], [1]), '{}/{}_sr_b{}.png'.format(result_path, idx, b))
+                    save_image(torch.flip(output[b, :, :, :], [1]), '{}/output/{}_sr_b{}.png'.format(result_path, idx, b))
                     save_image(
-                        torch.flip(clean[b, :, :, :], [1]), '{}/{}_clean_b{}.png'.format(result_path, idx, b))
+                        torch.flip(clean[b, :, :, :], [1]), '{}/clean/{}_clean_b{}.png'.format(result_path, idx, b))
                     save_image(
-                        torch.flip(noisy[b, :, :, :], [1]), '{}/{}_noisy_b{}.png'.format(result_path, idx, b))
+                        torch.flip(noisy[b, :, :, :], [1]), '{}/noisy/{}_noisy_b{}.png'.format(result_path, idx, b))
 
         if datatype == '.wav':
         # metrics
