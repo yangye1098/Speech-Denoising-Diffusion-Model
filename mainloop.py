@@ -208,7 +208,7 @@ def mainloop(phase, args):
 
             elif datatype == '.mel.npy':
                 for b in range(batch_size):
-                    save_image(torch.filp(output[b, :, :, :], 2), '{}/{}_sr_b{}.png'.format(result_path, idx, b))
+                    save_image(torch.flip(output[b, :, :, :], 2), '{}/{}_sr_b{}.png'.format(result_path, idx, b))
                     save_image(
                         torch.flip(clean[b, :, :, :], 2), '{}/{}_clean_b{}.png'.format(result_path, idx, b))
                     save_image(
