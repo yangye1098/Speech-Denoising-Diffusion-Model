@@ -180,9 +180,9 @@ def mainloop(phase, args):
         result_path = '{}'.format(opt['path']['results'])
         os.makedirs(result_path, exist_ok=True)
         result_path = '{}'.format(opt['path']['results'])
-        os.makedirs('{}/clean'.format(result_path), result_path, exist_ok=True)
-        os.makedirs('{}/noisy'.format(result_path), result_path, exist_ok=True)
-        os.makedirs('{}/output'.format(result_path), result_path, exist_ok=True)
+        os.makedirs('{}/clean'.format(result_path), exist_ok=True)
+        os.makedirs('{}/noisy'.format(result_path), exist_ok=True)
+        os.makedirs('{}/output'.format(result_path), exist_ok=True)
         for idx,  (clean, noisy) in enumerate(loader):
             if n_iter >= 0 and idx > n_iter:
                 break
