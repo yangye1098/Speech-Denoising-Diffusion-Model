@@ -5,6 +5,7 @@ from random import shuffle
 import numpy as np
 import torch
 from scipy import signal
+from scipy.io import wavfile
 
 try:
     import simpleaudio as sa
@@ -54,7 +55,7 @@ class AudioDataset(Dataset):
 
 
 
-        return clean, noisy
+        return clean, noisy, index
 
     def to_audio(self, grams, N):
         """
@@ -72,6 +73,9 @@ class AudioDataset(Dataset):
         _, sound = signal.istft(Zxx, self.sample_rate)
         return sound
 
+    def getName(self, idx):
+        return self.inventory[idx]
+
 
     def playIdx(self, idx, N):
         if hasAudio:
@@ -88,6 +92,87 @@ class AudioDataset(Dataset):
             play_obj.wait_done()
             play_obj = sa.play_buffer(noisy_sound, 1, 32//8, self.sample_rate)
             play_obj.wait_done()
+
+
+class OutputDataset(AudioDataset):
+    def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
+        super().__init__(dataroot, datatype, snr, sample_rate, T)
+
+        self.noisy_path = Path('{}/noisy'.format(dataroot))
+        self.output_path = Path('{}/output'.format(dataroot))
+
+
+    def __len__(self):
+        return self.data_len
+
+    def __getitem__(self, index):
+
+        if self.datatype == '.wav':
+            clean, sr = torchaudio.load(self.clean_path/self.inventory[index], num_frames=self.T)
+            assert(sr==self.sample_rate)
+            noisy, sr = torchaudio.load(self.noisy_path/self.inventory[index], num_frames=self.T)
+            assert (sr == self.sample_rate)
+            output, sr = torchaudio.load(self.output_path/self.inventory[index], num_frames=self.T)
+            assert (sr == self.sample_rate)
+        elif self.datatype == '.spec.npy' or self.datatype == '.mel.npy':
+            # load the two grams
+            clean = torch.from_numpy(np.load(self.clean_path/self.inventory[index]))
+            noisy = torch.from_numpy(np.load(self.noisy_path/self.inventory[index]))
+            output = torch.from_numpy(np.load(self.output_path/self.inventory[index]))
+
+
+
+        return clean, noisy, output
+
+    def to_audio(self, grams, N):
+        """
+        similar to STFTDecoder.decode
+        :param grams: [C, N, N]
+        :return:
+        """
+        assert N == grams.shape[1] and N == grams.shape[2]
+
+        Zxx = torch.zeros([1, N+1, N], dtype=torch.cfloat)
+        z_temp = torch.movedim(grams, 0, 2)
+        z_temp = 10 ** (z_temp * 10 - 10)
+
+        Zxx[:, 1:, : ] = torch.view_as_complex(z_temp.contiguous())
+        _, sound = signal.istft(Zxx, self.sample_rate)
+        return sound
+
+    def saveIdxToWav(self, idx, N):
+        clean, noisy, output = self.__getitem__(idx)
+        if self.datatype == '.spec.npy':
+            clean_sound = self.to_audio(clean, N)
+            wavfile.write(f'{self.clean_path / self.inventory[idx]}.wav', self.sample_rate, clean_sound.T)
+            noisy_sound = self.to_audio(noisy, N)
+            wavfile.write(f'{self.noisy_path / self.inventory[idx]}.wav', self.sample_rate, noisy_sound.T)
+            output_sound = self.to_audio(output, N)
+            wavfile.write(f'{self.output_path / self.inventory[idx]}.wav', self.sample_rate, output_sound.T)
+
+    def playIdx(self, idx, N):
+        if hasAudio:
+            clean, noisy, output = self.__getitem__(idx)
+            if self.datatype == '.wav':
+                clean_sound = clean.numpy()
+                noisy_sound = noisy.numpy()
+                output_sound = output.numpy()
+
+            elif self.datatype == '.spec.npy':
+                clean_sound = self.to_audio(clean, N)
+                noisy_sound = self.to_audio(noisy, N)
+                output_sound = self.to_audio(output, N)
+
+
+            play_obj = sa.play_buffer(clean_sound, 1, 32//8, self.sample_rate)
+            play_obj.wait_done()
+            play_obj = sa.play_buffer(noisy_sound, 1, 32//8, self.sample_rate)
+            play_obj.wait_done()
+            play_obj = sa.play_buffer(output_sound, 1, 32//8, self.sample_rate)
+            play_obj.wait_done()
+
+
+
 
 
 

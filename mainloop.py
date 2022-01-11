@@ -98,7 +98,7 @@ def mainloop(phase, args):
         val_iter = opt['train']['val_iter']
         while current_step < n_iter:
             current_epoch += 1
-            for _, (target, noisy) in enumerate(train_loader):
+            for _, (target, noisy, _) in enumerate(train_loader):
                 target, noisy = target.to(model.device), noisy.to(model.device)
                 current_step += 1
                 if current_step > n_iter:
@@ -129,7 +129,7 @@ def mainloop(phase, args):
 
                     model.set_new_noise_schedule(
                         opt['model']['beta_schedule']['val'], schedule_phase='val')
-                    for _,  (target, noisy) in enumerate(val_loader):
+                    for _,  (target, noisy, _) in enumerate(val_loader):
                         if idx >= val_iter:
                             break
                         target, noisy = target.to(model.device), noisy.to(model.device)
@@ -183,7 +183,7 @@ def mainloop(phase, args):
         os.makedirs('{}/clean'.format(result_path), exist_ok=True)
         os.makedirs('{}/noisy'.format(result_path), exist_ok=True)
         os.makedirs('{}/output'.format(result_path), exist_ok=True)
-        for idx,  (clean, noisy) in enumerate(loader):
+        for idx,  (clean, noisy, name_index) in enumerate(loader):
             if n_iter >= 0 and idx > n_iter:
                 break
             clean, noisy = clean.to(model.device), noisy.to(model.device)
@@ -193,30 +193,33 @@ def mainloop(phase, args):
 
             if datatype == '.wav':
                 for b in range(batch_size):
-                    save_wav(output[b, :, :], opt['sample_rate'], '{}/output/{}_b{}.wav'.format(result_path, idx, b))
+                    name = loader.dataset.getName(name_index[b])
+                    save_wav(output[b, :, :], opt['sample_rate'], '{}/output/{}.wav'.format(result_path, name))
                     save_wav(
-                        clean[b, :, :], opt['sample_rate'], '{}/clean/{}_b{}.wav'.format(result_path, idx, b))
+                        clean[b, :, :], opt['sample_rate'], '{}/clean/{}.wav'.format(result_path, name))
                     save_wav(
-                        noisy[b, :, :], opt['sample_rate'], '{}/noisy/{}_b{}.wav'.format(result_path, idx, b))
+                        noisy[b, :, :], opt['sample_rate'], '{}/noisy/{}.wav'.format(result_path, name))
 
 
                 metric_vec[idx] = Metrics.calculate_sisnr(output, clean)
             elif datatype == '.spec.npy':
                 for b in range(batch_size):
-                    np.save('{}/output/{}_b{}.spec.npy'.format(result_path, idx, b), output[b,:, :, :].cpu().numpy())
+                    name = loader.dataset.getName(name_index[b])
+                    np.save('{}/output/{}.spec.npy'.format(result_path, name), output[b,:, :, :].cpu().numpy())
                     np.save(
-                        '{}/clean/{}_b{}.spec.npy'.format(result_path, idx, b), clean[b,:, :, :].cpu().numpy())
+                        '{}/clean/{}.spec.npy'.format(result_path, name), clean[b,:, :, :].cpu().numpy())
                     np.save(
-                        '{}/noisy/{}_b{}.spec.npy'.format(result_path, idx, b), noisy[b,:, :, :].cpu().numpy())
+                        '{}/noisy/{}.spec.npy'.format(result_path, name), noisy[b,:, :, :].cpu().numpy())
 
 
             elif datatype == '.mel.npy':
                 for b in range(batch_size):
-                    save_image(torch.flip(output[b, :, :, :], [1]), '{}/output/{}_sr_b{}.png'.format(result_path, idx, b))
+                    name = loader.dataset.getName(name_index[b])
+                    save_image(torch.flip(output[b, :, :, :], [1]), '{}/output/{}.png'.format(result_path, name))
                     save_image(
-                        torch.flip(clean[b, :, :, :], [1]), '{}/clean/{}_clean_b{}.png'.format(result_path, idx, b))
+                        torch.flip(clean[b, :, :, :], [1]), '{}/clean/{}.png'.format(result_path, name))
                     save_image(
-                        torch.flip(noisy[b, :, :, :], [1]), '{}/noisy/{}_noisy_b{}.png'.format(result_path, idx, b))
+                        torch.flip(noisy[b, :, :, :], [1]), '{}/noisy/{}.png'.format(result_path, name))
 
         if datatype == '.wav':
         # metrics
