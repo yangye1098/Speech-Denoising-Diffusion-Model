@@ -5,12 +5,21 @@ def calculate_sisnr(s_hat, s):
     """
     Calculate SISNR
     Args:
-        s_hat: [B, 1, T]
-        s: [B, 1, T] the true sources
+        s_hat: [B, 1, T] or [B, T]
+        s: [B, 1, T] or [B, T] the true sources
     Returns:
         SI-SNR: [1]
 
     """
+    if s_hat.ndim == 2:
+        s_hat = s_hat.unsqueeze(1)
+
+    if s.ndim == 2:
+        s = s.unsqueeze(1)
+
+    print(s_hat.shape)
+    print(s.shape)
+
     # normalize to zero mean
     s_hat = s_hat - torch.mean(s_hat, 2, keepdim=True)  # [B, 1, T]
     s = s - torch.mean(s, 2, keepdim=True)  # [B, 1, T]

@@ -1,6 +1,6 @@
 {
     "name": "sddm_wsj0_mel",
-    "sample_rate": 8000,
+    "sample_rate": 16000,
     "datatype": ".spec.npy",
     "gpu_ids": null,
     "path": { //set the path
@@ -13,17 +13,15 @@
     },
     "datasets": {
         "train": {
-            "name": "wsj0_si_tr",
-            "dataroot": "data/data/wsj0_si_tr_0",
-            "snr": 0,
+            "name": "Voicebank-DEMAND-train28spk",
+            "dataroot": "data/Voicebank-DEMAND/train_28spk",
             "batch_size": 8,
             "num_workers": 2,
             "use_shuffle": true
         },
         "val": {
-            "name": "wsj0_si_val",
-            "dataroot": "data/data/wsj0_si_val_0",
-            "snr": 0,
+            "name": "Voicebank-DEMAND-test",
+            "dataroot": "data/Voicebank-DEMAND/test",
             "batch_size": 8,
             "num_workers": 2,
             "use_shuffle": true

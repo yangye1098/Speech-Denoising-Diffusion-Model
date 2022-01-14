@@ -5,6 +5,7 @@ import logging
 import utils.config as Config
 import utils.logger as Logger
 import utils.metrics as Metrics
+from utils.gram_transform import ReverseRISpectrograms
 from torch.utils.tensorboard import SummaryWriter
 import os
 
@@ -41,6 +42,8 @@ def mainloop(phase, args):
         stride = encoder_opt[encoder_type]['stride']
         expand_order = encoder_opt[encoder_type]['expand_order']
         T = (N-1)*stride
+        use_mel = encoder_type == 'RI_mel'
+        gram_decoder = ReverseRISpectrograms(N, L, stride, sample_rate, expand_order, use_mel)
     else:
         raise NotImplementedError
 
@@ -119,8 +122,16 @@ def mainloop(phase, args):
                         SR = model.eval(noisy, continuous=False)
 
                         # log sisnr
-                        avg_sisnr += Metrics.calculate_sisnr(
-                             SR, target)
+
+                        if datatype == '.wav':
+                            avg_sisnr += Metrics.calculate_sisnr(
+                                SR, target)
+                        elif datatype == '.spec.npy' or datatype == '.mel.npy':
+                            gram_decoder.to(model.device)
+                            SR_sound = gram_decoder(SR)
+                            target_sound = gram_decoder(target)
+                            avg_sisnr += Metrics.calculate_sisnr(
+                                SR_sound, target_sound)
 
                     avg_sisnr = avg_sisnr / idx
 

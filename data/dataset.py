@@ -17,16 +17,15 @@ def generate_inventory(path, file_type='.wav'):
 
 
 class AudioDataset(Dataset):
-    def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
+    def __init__(self, dataroot, datatype, sample_rate=8000, T=-1):
         if datatype not in ['.wav', '.spec.npy', '.mel.npy']:
             raise NotImplementedError
         self.datatype = datatype
-        self.snr = snr
         self.sample_rate = sample_rate
         self.T = T
 
         self.clean_path = Path('{}/clean'.format(dataroot))
-        self.noisy_path = Path('{}/noisy_{}'.format(dataroot, snr))
+        self.noisy_path = Path('{}/noisy'.format(dataroot))
 
         self.inventory = generate_inventory(self.clean_path, datatype)
         self.data_len = len(self.inventory)
@@ -55,8 +54,8 @@ class AudioDataset(Dataset):
 
 
 class OutputDataset(AudioDataset):
-    def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
-        super().__init__(dataroot, datatype, snr, sample_rate, T)
+    def __init__(self, dataroot, datatype, sample_rate=8000, T=-1):
+        super().__init__(dataroot, datatype, sample_rate, T)
 
         self.noisy_path = Path('{}/noisy'.format(dataroot))
         self.output_path = Path('{}/output'.format(dataroot))
@@ -96,6 +95,7 @@ if __name__ == '__main__':
     except ModuleNotFoundError:
         hasAudio = False
 
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str,
                         help='JSON file for configuration')
@@ -112,7 +112,6 @@ if __name__ == '__main__':
 
     dataset_opt = opt['datasets'][dataset_type]
     dataroot = '../' + dataset_opt['dataroot']
-    snr = dataset_opt['snr']
 
     encoder_opt = opt['model']['encoder']
     encoder_type = opt['model']['encoder']['type']
@@ -123,8 +122,8 @@ if __name__ == '__main__':
 
     T = (N-1) * stride
 
-    dataset = AudioDataset(dataroot, datatype, snr)
-    dataloader = DataLoader(dataset, batch_size=2)
+    dataset = AudioDataset(dataroot, datatype)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
     clean, noisy, _ = next(iter(dataloader))
     print(clean.shape) # should be [2, 128, 128]
 

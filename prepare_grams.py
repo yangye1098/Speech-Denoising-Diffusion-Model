@@ -10,22 +10,32 @@ from tqdm import tqdm
 from utils.gram_transform import RISpectrograms
 
 
-def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_order=5, normalize=True, debug=False):
-    filenames = glob(f'{dir}/**/*.wav', recursive=True)
+def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_order=5, resample=True, normalize=True, debug=False):
 
+    filenames = glob(f'{dir}/**/*.wav', recursive=True)
     if encoder_type == 'RI_mel':
         transform = RISpectrograms(N, L, stride, sample_rate, expand_order=expand_order, use_mel=True, normalize=normalize )
     elif encoder_type == 'RI':
         transform = RISpectrograms(N, L, stride, sample_rate, expand_order=expand_order, use_mel=False, normalize=normalize)
-
     else:
         raise NotImplementedError
 
-    def worker(filename, debug=False):
-        # cut the audio into chunks
-        sound, sr = torchaudio.load(filename)
-        assert sr == sample_rate
+    resampler = None
+    for i, filename in tqdm(enumerate(filenames), desc='Preprocessing', total=len(filenames)):
+        if resample:
+            sound_original, sr = torchaudio.load(filename)
+            if resampler is None:
+                resampler = torchaudio.transforms.Resample(sr, sample_rate, dtype=sound_original.dtype)
+                sr_original = sr
+            else:
+                assert sr_original == sr, f'The sample rate of all files must be the same, {filename} is {sr}Hz'
+            sound = resampler(sound_original)
+        else:
+            sound, sr = torchaudio.load(filename)
+            assert sr == sample_rate, 'sound sample rate is {}Hz'.format(sr)
+
         sound_len = sound.shape[1]
+        # cut the audio into chunks
         chunk_idx = 0
         while (chunk_idx + 1)*T < sound_len:
             snippet = torch.squeeze(sound[:, chunk_idx*T: (chunk_idx+1)*T])
@@ -47,8 +57,6 @@ def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_
 
             chunk_idx = chunk_idx + 1
 
-    for i, f in tqdm(enumerate(filenames), desc='Preprocessing', total=len(filenames)):
-        worker(f, debug)
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
@@ -67,6 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str,
                         help='JSON file for configuration')
     parser.add_argument('-n', '--normalize', type=bool, default=True)
+    parser.add_argument('-s', '--resample', type=bool, default=True)
     parser.add_argument('-debug', '-d', action='store_true')
 
     args = parser.parse_args()
@@ -132,6 +141,7 @@ if __name__ == '__main__':
         axs[1].set_title('Imaginary')
         plt.show(block=False)
 
-    print(f'.wav file sample rate is {sample_rate}')
+    print(f'Prepare grams from {dir}')
+    print(f'target sample rate is {sample_rate}, resample: {args.resample}')
     print(f'prepare {encoder_type} in {datatype}: N:{N}, L:{L}, stride:{stride}, expand_order:{expand_order}, normalize:{args.normalize}')
-    main(dir, encoder_type, datatype, N, L, stride, T, sample_rate, expand_order, args.normalize, args.debug)
+    main(dir, encoder_type, datatype, N, L, stride, T, sample_rate, expand_order, args.resample, args.normalize, args.debug)

@@ -7,7 +7,6 @@ def create_dataloader(sample_rate, datatype, T, dataset_opt, logger):
     '''create dataloader '''
     dataset = AudioDataset(dataroot=dataset_opt['dataroot'],
                            datatype=datatype,
-                           snr=dataset_opt['snr'],
                            sample_rate=sample_rate,
                            T = T
                            )
