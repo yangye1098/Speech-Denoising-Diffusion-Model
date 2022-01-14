@@ -22,23 +22,30 @@ def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_
         raise NotImplementedError
 
     def worker(filename, debug=False):
-        sound, sr = torchaudio.load(filename, num_frames=T)
+        # cut the audio into chunks
+        sound, sr = torchaudio.load(filename)
         assert sr == sample_rate
-        if debug:
+        sound_len = sound.shape[1]
+        chunk_idx = 0
+        while (chunk_idx + 1)*T < sound_len:
+            snippet = torch.squeeze(sound[:, chunk_idx*T: (chunk_idx+1)*T])
 
-            grams = transform(torch.squeeze(sound))
-            plotTwoGrams(grams)
-            plotSpectrogram(grams, expand_order)
-            plt.show()
-            play_audio(sound, '.wav', sample_rate, N, L, stride, expand_order, normalize=True)
-            play_audio(grams, datatype, sample_rate, N, L, stride, expand_order, normalize=True)
+            if debug:
+                grams = transform(snippet)
+                plotTwoGrams(grams)
+                plotSpectrogram(grams, expand_order)
+                plt.show()
+                play_audio(snippet, '.wav', sample_rate, N, L, stride, expand_order, normalize=True)
+                play_audio(grams, datatype, sample_rate, N, L, stride, expand_order, normalize=True)
 
-        else:
-            grams_normalized = transform(torch.squeeze(sound))
-            if grams_normalized.min() < 0 or grams_normalized.max() > 1:
-                raise ValueError(f'Out of Range: min:{grams_normalized.min()}, max:{grams_normalized.max()}')
+            else:
+                grams_normalized = transform(torch.squeeze(snippet))
+                if grams_normalized.min() < 0 or grams_normalized.max() > 1:
+                    raise ValueError(f'Out of Range: min:{grams_normalized.min()}, max:{grams_normalized.max()}')
 
-            np.save(f'{filename}{datatype}', grams_normalized.cpu().numpy())
+                np.save(f'{filename}_{chunk_idx}{datatype}', grams_normalized.cpu().numpy())
+
+            chunk_idx = chunk_idx + 1
 
     for i, f in tqdm(enumerate(filenames), desc='Preprocessing', total=len(filenames)):
         worker(f, debug)
