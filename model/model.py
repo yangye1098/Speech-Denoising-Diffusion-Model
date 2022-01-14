@@ -3,7 +3,7 @@ import os
 
 import torch
 import torch.nn as nn
-from .encoder_decoder import ConvDecoder, ConvEncoder, STFTEncoder, STFTDecoder
+from .encoder_decoder import ConvDecoder, ConvEncoder
 from .util import init_weights
 
 ####################
@@ -89,42 +89,19 @@ class DDPM():
         if ('norm_groups' not in model_opt['unet']) or model_opt['unet']['norm_groups'] is None:
             model_opt['unet']['norm_groups'] = 32
 
-        if model_opt['encoder']['type'] == 'conv':
-            encoder = ConvEncoder(
-                N=model_opt['encoder']['conv']['N'],
-                L=model_opt['encoder']['conv']['L'],
-                stride=model_opt['encoder']['conv']['stride'],
-            )
-            decoder = ConvDecoder(
-                N=model_opt['encoder']['conv']['N'],
-                L=model_opt['encoder']['conv']['L'],
-                stride=model_opt['encoder']['conv']['stride'],
-            )
-            image_size = model_opt['encoder']['conv']['N']
+        encoder_type = model_opt['encoder']['type']
 
-        elif model_opt['encoder']['type'] == 'stft':
-                encoder = STFTEncoder(
-                    N=model_opt['encoder']['stft']['N'],
-                    L=model_opt['encoder']['stft']['L'],
-                    stride=model_opt['encoder']['stft']['stride'],
-                    sample_rate=self.opt['sample_rate']
-                )
-                decoder = STFTDecoder(
-                    N=model_opt['encoder']['stft']['N'],
-                    L=model_opt['encoder']['stft']['L'],
-                    stride=model_opt['encoder']['stft']['stride'],
-                    sample_rate=self.opt['sample_rate']
-                )
-                image_size = model_opt['encoder']['conv']['N']
+        N = model_opt['encoder'][encoder_type]['N']
+        L = model_opt['encoder'][encoder_type]['L']
+        stride = model_opt['encoder'][encoder_type]['stride']
+        image_size = N
 
-        elif model_opt['encoder']['type'] == 'grams':
+        if encoder_type == 'conv':
+            encoder = ConvEncoder(N, L, stride)
+            decoder = ConvDecoder(N, L, stride)
+        elif encoder_type in  ['RI', 'RI_mel']:
             encoder = None
             decoder = None
-            image_size = model_opt['encoder']['grams']['N']
-        elif model_opt['encoder']['type'] == 'melgram':
-            encoder = None
-            decoder = None
-            image_size = model_opt['encoder']['melgram']['N']
         else:
             raise NotImplementedError
 

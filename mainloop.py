@@ -32,37 +32,18 @@ def mainloop(phase, args):
     datatype = opt['datatype']
     sample_rate = opt['sample_rate']
     # Calculate time points T to use
-    if opt['model']['encoder']['type'] == 'conv':
-        N = opt['model']['encoder']['conv']['N']
-        L = opt['model']['encoder']['conv']['L']
-        stride = opt['model']['encoder']['conv']['stride']
-        # to make K equals L, T needs to be
-        T = (N - 1) * stride + L
 
-    elif opt['model']['encoder']['type'] == 'stft':
-        N = opt['model']['encoder']['stft']['N']
-        L = opt['model']['encoder']['stft']['L']
-        stride = opt['model']['encoder']['stft']['stride']
-        # to make K equals L, T needs to be
-        T = (N - 1) * stride
-
-    elif opt['model']['encoder']['type'] == 'melgram':
-        # from prepare_melspectrogram
-        N = opt['model']['encoder']['melgram']['N']
-        L = opt['model']['encoder']['melgram']['L']
-        stride = opt['model']['encoder']['melgram']['stride']
-        # to make K equals L, T needs to be
-        T = (N - 1) * stride
-
-    elif opt['model']['encoder']['type'] == 'grams':
-        # from prepare_spectrogram
-        N = opt['model']['encoder']['grams']['N']
-        L = opt['model']['encoder']['grams']['L']
-        stride = opt['model']['encoder']['grams']['stride']
-        # to make K equals L, T needs to be
-        T = (N - 1) * stride
+    encoder_opt = opt['model']['encoder']
+    encoder_type = encoder_opt['type']
+    if encoder_type in ['RI_mel', 'RI']:
+        N = encoder_opt[encoder_type]['N']
+        L = encoder_opt[encoder_type]['L']
+        stride = encoder_opt[encoder_type]['stride']
+        expand_order = encoder_opt[encoder_type]['expand_order']
+        T = (N-1)*stride
     else:
         raise NotImplementedError
+
 
     # dataset
     if phase == 'train':

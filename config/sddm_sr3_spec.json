@@ -53,8 +53,8 @@
             }
         },
         "unet": {
-            "in_channel": 2,
-            "out_channel": 1,
+            "in_channel": 4,
+            "out_channel": 2,
             "inner_channel": 64,
             "channel_multiplier": [
                 1,
