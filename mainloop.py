@@ -11,8 +11,8 @@ import os
 from model.model import DDPM
 
 from data import create_dataloader
-from data.util import save_wav
 from torchvision.utils import save_image
+import torchaudio
 import numpy as np
 
 def mainloop(phase, args):
@@ -194,11 +194,9 @@ def mainloop(phase, args):
             if datatype == '.wav':
                 for b in range(batch_size):
                     name = loader.dataset.getName(name_index[b])
-                    save_wav(output[b, :, :], opt['sample_rate'], '{}/output/{}.wav'.format(result_path, name))
-                    save_wav(
-                        clean[b, :, :], opt['sample_rate'], '{}/clean/{}.wav'.format(result_path, name))
-                    save_wav(
-                        noisy[b, :, :], opt['sample_rate'], '{}/noisy/{}.wav'.format(result_path, name))
+                    torchaudio.save( '{}/output/{}.wav'.format(result_path, name), output[b, :, :], sample_rate)
+                    torchaudio.save('{}/clean/{}.wav'.format(result_path, name), clean[b, :, :], sample_rate)
+                    torchaudio.save('{}/noisy/{}.wav'.format(result_path, name), noisy[b, :, :], sample_rate)
 
 
                 metric_vec[idx] = Metrics.calculate_sisnr(output, clean)

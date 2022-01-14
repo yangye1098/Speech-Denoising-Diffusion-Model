@@ -1,17 +1,10 @@
-import torchaudio
-from torch.utils.data import Dataset
 from pathlib import Path
-from random import shuffle
 import numpy as np
 import torch
-from scipy import signal
-from scipy.io import wavfile
+import torchaudio
+from torch.utils.data import Dataset
 
-try:
-    import simpleaudio as sa
-    hasAudio = True
-except ModuleNotFoundError:
-    hasAudio = False
+
 
 def generate_inventory(path, file_type='.wav'):
     path = Path(path)
@@ -20,8 +13,8 @@ def generate_inventory(path, file_type='.wav'):
     file_paths = path.glob('*'+file_type)
     file_names = [ file_path.name for file_path in file_paths ]
     assert file_names, '{:s} has no valid {} file'.format(path, file_type)
-    shuffle(file_names)
     return file_names
+
 
 class AudioDataset(Dataset):
     def __init__(self, dataroot, datatype, snr, sample_rate=8000, T=-1):
@@ -53,45 +46,12 @@ class AudioDataset(Dataset):
             clean = torch.from_numpy(np.load(self.clean_path/self.inventory[index]))
             noisy = torch.from_numpy(np.load(self.noisy_path/self.inventory[index]))
 
-
-
         return clean, noisy, index
-
-    def to_audio(self, grams, N):
-        """
-        similar to STFTDecoder.decode
-        :param grams: [C, N, N]
-        :return:
-        """
-        assert N == grams.shape[1] and N == grams.shape[2]
-
-        Zxx = torch.zeros([1, N+1, N], dtype=torch.cfloat)
-        z_temp = torch.movedim(grams, 0, 2)
-        z_temp = 10 ** (z_temp * 10 - 10)
-
-        Zxx[:, 1:, : ] = torch.view_as_complex(z_temp.contiguous())
-        _, sound = signal.istft(Zxx, self.sample_rate)
-        return sound
 
     def getName(self, idx):
         return self.inventory[idx]
 
 
-    def playIdx(self, idx, N):
-        if hasAudio:
-            clean, noisy = self.__getitem__(idx)
-            if self.datatype == '.wav':
-                clean_sound = clean.numpy()
-                noisy_sound = noisy.numpy()
-
-            elif self.datatype == '.spec.npy':
-                clean_sound = self.to_audio(clean, N)
-                noisy_sound = self.to_audio(noisy, N)
-
-            play_obj = sa.play_buffer(clean_sound, 1, 32//8, self.sample_rate)
-            play_obj.wait_done()
-            play_obj = sa.play_buffer(noisy_sound, 1, 32//8, self.sample_rate)
-            play_obj.wait_done()
 
 
 class OutputDataset(AudioDataset):
@@ -120,90 +80,71 @@ class OutputDataset(AudioDataset):
             noisy = torch.from_numpy(np.load(self.noisy_path/self.inventory[index]))
             output = torch.from_numpy(np.load(self.output_path/self.inventory[index]))
 
-
-
         return clean, noisy, output
-
-    def to_audio(self, grams, N):
-        """
-        similar to STFTDecoder.decode
-        :param grams: [C, N, N]
-        :return:
-        """
-        assert N == grams.shape[1] and N == grams.shape[2]
-
-        Zxx = torch.zeros([1, N+1, N], dtype=torch.cfloat)
-        z_temp = torch.movedim(grams, 0, 2)
-        z_temp = 10 ** (z_temp * 10 - 10)
-
-        Zxx[:, 1:, : ] = torch.view_as_complex(z_temp.contiguous())
-        _, sound = signal.istft(Zxx, self.sample_rate)
-        return sound
-
-    def saveIdxToWav(self, idx, N):
-        clean, noisy, output = self.__getitem__(idx)
-        if self.datatype == '.spec.npy':
-            clean_sound = self.to_audio(clean, N)
-            wavfile.write(f'{self.clean_path / self.inventory[idx]}.wav', self.sample_rate, clean_sound.T)
-            noisy_sound = self.to_audio(noisy, N)
-            wavfile.write(f'{self.noisy_path / self.inventory[idx]}.wav', self.sample_rate, noisy_sound.T)
-            output_sound = self.to_audio(output, N)
-            wavfile.write(f'{self.output_path / self.inventory[idx]}.wav', self.sample_rate, output_sound.T)
-
-    def playIdx(self, idx, N):
-        if hasAudio:
-            clean, noisy, output = self.__getitem__(idx)
-            if self.datatype == '.wav':
-                clean_sound = clean.numpy()
-                noisy_sound = noisy.numpy()
-                output_sound = output.numpy()
-
-            elif self.datatype == '.spec.npy':
-                clean_sound = self.to_audio(clean, N)
-                noisy_sound = self.to_audio(noisy, N)
-                output_sound = self.to_audio(output, N)
-
-
-            play_obj = sa.play_buffer(clean_sound, 1, 32//8, self.sample_rate)
-            play_obj.wait_done()
-            play_obj = sa.play_buffer(noisy_sound, 1, 32//8, self.sample_rate)
-            play_obj.wait_done()
-            play_obj = sa.play_buffer(output_sound, 1, 32//8, self.sample_rate)
-            play_obj.wait_done()
-
-
-
-
 
 
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
     import matplotlib.pyplot as plt
-    import librosa
+    import argparse
+    import utils.config as Config
+    from utils.gram_transform import gram_log_modulus_normalize_reverse, ReverseRISpectrograms
 
-    N = 128
-    #L = 256
-    #stride = 128
-    sample_rate = 8000
-    snr = 0
-    dataroot = f'data/wsj0_si_tr_{snr}'
-    datatype = '.spec.npy'
-    dataset_tr = AudioDataset(dataroot, datatype, snr)
-    #dataset_tr.playIdx(0, N)
+    try:
+        import simpleaudio as sa
+        hasAudio = True
+    except ModuleNotFoundError:
+        hasAudio = False
 
-    dataloader = DataLoader(dataset_tr, batch_size=2)
-    clean, noisy = next(iter(dataloader))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', type=str,
+                        help='JSON file for configuration')
+    parser.add_argument('-debug', '-d', action='store_true')
+
+    args = parser.parse_args()
+
+    dataset_type = 'train'
+    # parse argument
+    opt = Config.parse(args)
+
+    sample_rate = opt['sample_rate']
+    datatype = opt['datatype']
+
+    dataset_opt = opt['datasets'][dataset_type]
+    dataroot = '../' + dataset_opt['dataroot']
+    snr = dataset_opt['snr']
+
+    encoder_opt = opt['model']['encoder']
+    encoder_type = opt['model']['encoder']['type']
+    N = encoder_opt[encoder_type]['N']
+    L = encoder_opt[encoder_type]['L']
+    stride =encoder_opt[encoder_type]['stride']
+    expand_order = encoder_opt[encoder_type]['expand_order']
+
+    T = (N-1) * stride
+
+    dataset = AudioDataset(dataroot, datatype, snr)
+    dataloader = DataLoader(dataset, batch_size=2)
+    clean, noisy, _ = next(iter(dataloader))
     print(clean.shape) # should be [2, 128, 128]
 
-    def plotMel(gram):
-        fig, axs = plt.subplots(1, 1)
-        axs.set_title('MelSpectrogram log, normalized ')
-        axs.set_ylabel('Mel Frequency')
-        axs.set_xlabel('frame')
-        im = axs.imshow(gram, origin='lower', aspect='auto')
-        fig.colorbar(im, ax=axs)
-        plt.show(block=False)
 
+    def play_audio(data: torch.FloatTensor, datatype, sample_rate, N=None, L=None, stride=None, expand_order=None):
+        if hasAudio:
+            if datatype == '.wav':
+                sound = data.numpy()
+
+            elif datatype == '.spec.npy':
+                transform = ReverseRISpectrograms(N=N, L=L, stride=stride, sample_rate=sample_rate,
+                                                  expand_order=expand_order, use_mel=False)
+                sound = torch.squeeze(transform(data)).numpy()
+            elif datatype == '.mel.npy':
+                transform = ReverseRISpectrograms(N=N, L=L, stride=stride, sample_rate=sample_rate,
+                                                  expand_order=expand_order, use_mel=True)
+                sound = torch.squeeze(transform(data)).numpy()
+
+            play_obj = sa.play_buffer(sound, 1, 32 // 8, sample_rate)
+            play_obj.wait_done()
 
     def plotTwoGrams(grams):
         fig, axs = plt.subplots(1, 2)
@@ -218,8 +159,10 @@ if __name__ == '__main__':
         plt.show(block=False)
 
 
-    def plotSpectrogram(grams):
-        grams_original = 10**(10 * grams - 10)
+
+    def plotSpectrogram(grams, expand_order):
+
+        grams_original = gram_log_modulus_normalize_reverse(grams, expand_order)
         spectrogram = np.sum([np.square(grams_original[0, :, :]), np.square(grams_original[1, :, :])])
 
         plt.figure()
@@ -230,20 +173,26 @@ if __name__ == '__main__':
         plt.title('Spectrogram, db re 1')
         plt.show(block=False)
 
+
     if datatype == '.mel.npy':
-        plotMel(clean[0, 0, :, :])
-        plotMel(noisy[0, 0, :, :])
+
+
+        play_audio(torch.squeeze(clean[0, :, :]), datatype, sample_rate, N, L, stride, expand_order)
+        play_audio(torch.squeeze(noisy[0, :, :]), datatype, sample_rate, N, L, stride, expand_order)
+
+        plotTwoGrams(clean[0, :, :, :])
+        plotTwoGrams(noisy[0, :, :, :])
+        plotSpectrogram(clean[0, :, :, :], expand_order)
+        plotSpectrogram(noisy[0, :, :, :], expand_order)
         plt.show()
 
 
     elif datatype == '.spec.npy':
 
+        play_audio(torch.squeeze(clean[0, :, :]), datatype, sample_rate, N, L, stride, expand_order)
+        play_audio(torch.squeeze(noisy[0, :, :]), datatype, sample_rate, N, L, stride, expand_order)
         plotTwoGrams(clean[0, :, :, :])
         plotTwoGrams(noisy[0, :, :, :])
-        #clean_sound = dataset_tr.to_audio(clean[0, :, :, :], N)
-        #plt.figure()
-        #plt.specgram(np.squeeze(clean_sound), Fs=sample_rate, NFFT=N+1)
-        #plt.show()
-        plotSpectrogram(clean[0, :, :, :])
-        plotSpectrogram(noisy[0, :, :, :])
+        plotSpectrogram(clean[0, :, :, :], expand_order)
+        plotSpectrogram(noisy[0, :, :, :], expand_order)
         plt.show()

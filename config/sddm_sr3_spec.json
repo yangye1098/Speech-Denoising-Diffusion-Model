@@ -1,7 +1,7 @@
 {
-    "name": "sddm_wsj0",
+    "name": "sddm_wsj0_mel",
     "sample_rate": 8000,
-    "datatype": ".mel.npy",
+    "datatype": ".spec.npy",
     "gpu_ids": null,
     "path": { //set the path
         "log": "logs",
@@ -9,14 +9,14 @@
         "results": "results",
         "checkpoint": "checkpoint",
         "resume_state": null
-        //"resume_state": "checkpoints/I20000_E13" //pretrain model or training state
+        //"resume_state": "checkpoints/sddm_wsj0_mel/I720000_E463" //pretrain model or training state
     },
     "datasets": {
         "train": {
             "name": "wsj0_si_tr",
             "dataroot": "data/data/wsj0_si_tr_0",
             "snr": 0,
-            "batch_size": 4,
+            "batch_size": 8,
             "num_workers": 2,
             "use_shuffle": true
         },
@@ -24,7 +24,7 @@
             "name": "wsj0_si_val",
             "dataroot": "data/data/wsj0_si_val_0",
             "snr": 0,
-            "batch_size": 4,
+            "batch_size": 8,
             "num_workers": 2,
             "use_shuffle": true
         }
@@ -33,21 +33,23 @@
         "which_model_G": "sr3", // use the ddpm or sr3 network structure
         "finetune_norm": false,
         "encoder": {
-            "type": "melgram",
+            "type": "RI",
             "conv": {
                 "N": 128,
                 "L": 512,
                 "stride": 256
             },
-            "stft": {
+            "RI": {
                 "N": 128,
-                "L": 256,
-                "stride": 128
+                "L": 254,
+                "stride": 127,
+                "expand_order": 4
             },
-            "melgram": {
+            "RI_mel": {
                 "N": 128,
                 "L": 512,
-                "stride": 256
+                "stride": 256,
+                "expand_order": 4
             }
         },
         "unet": {
@@ -89,7 +91,7 @@
     },
     "train": {
         "n_iter": 240000,
-        "val_iter": 2,
+        "val_iter": 1,
         "val_freq": 10000,
         "save_checkpoint_freq": 10000,
         "print_freq": 1000,
