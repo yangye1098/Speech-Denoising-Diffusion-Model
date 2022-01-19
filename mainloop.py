@@ -186,20 +186,30 @@ def mainloop(phase, args):
             if datatype == '.wav':
                 for b in range(batch_size):
                     name = loader.dataset.getName(name_index[b])
-                    torchaudio.save( '{}/output/{}.wav'.format(result_path, name), output[b, :, :], sample_rate)
+                    torchaudio.save('{}/output/{}.wav'.format(result_path, name), output[b, :, :], sample_rate)
                     torchaudio.save('{}/clean/{}.wav'.format(result_path, name), clean[b, :, :], sample_rate)
                     torchaudio.save('{}/noisy/{}.wav'.format(result_path, name), noisy[b, :, :], sample_rate)
 
 
                 metric_vec[idx] = Metrics.calculate_sisnr(output, clean)
             elif datatype == '.spec.npy':
+
+                gram_decoder.to(model.device)
+                output_sound = gram_decoder(output)
+                clean_sound = gram_decoder(clean)
+                noisy_sound = gram_decoder(noisy)
+                metric_vec[idx] = Metrics.calculate_sisnr(output_sound, clean_sound)
+
                 for b in range(batch_size):
                     name = loader.dataset.getName(name_index[b])
                     np.save('{}/output/{}.spec.npy'.format(result_path, name), output[b,:, :, :].cpu().numpy())
+                    torchaudio.save('{}/output/{}.spec.npy.wav'.format(result_path, name), output_sound[b,:, :, :].cpu(), sample_rate)
                     np.save(
                         '{}/clean/{}.spec.npy'.format(result_path, name), clean[b,:, :, :].cpu().numpy())
+                    torchaudio.save('{}/clean/{}.spec.npy.wav'.format(result_path, name), clean_sound[b,:, :, :].cpu(), sample_rate)
                     np.save(
                         '{}/noisy/{}.spec.npy'.format(result_path, name), noisy[b,:, :, :].cpu().numpy())
+                    torchaudio.save('{}/noisy/{}.spec.npy.wav'.format(result_path, name), noisy_sound[b,:, :, :].cpu(), sample_rate)
 
 
             elif datatype == '.mel.npy':
@@ -216,9 +226,12 @@ def mainloop(phase, args):
             avg_metric = torch.mean(metric_vec)
             # log
             logger.info('# evaluation # SISNR: {:.4e}'.format(avg_metric))
-            torch.save(metric_vec, '{}/sisnr_vec.pt'.format(result_path))
+            torch.save(metric_vec.cpu(), '{}/sisnr_vec.pt'.format(result_path))
         elif datatype == '.spec.npy':
-            pass
+            avg_metric = torch.mean(metric_vec)
+            # log
+            logger.info('# evaluation # SISNR: {:.4e}'.format(avg_metric))
+            torch.save(metric_vec.cpu(), '{}/sisnr_vec.pt'.format(result_path))
         elif datatype == '.mel.npy':
             pass
 

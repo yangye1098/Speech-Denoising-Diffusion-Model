@@ -1,4 +1,6 @@
 import torch
+from torchmetrics.functional import pesq
+from torchmetrics.functional import stoi
 
 
 def calculate_sisnr(s_hat, s):
@@ -36,6 +38,23 @@ def calculate_sisnr(s_hat, s):
     return torch.squeeze(torch.mean(sisnr))
 
 
+def calculate_PESQ():
+    pass
+
+def calculate_CSIG():
+    pass
+
+def calculate_STOI():
+    pass
+
+def calculate_CBAK():
+    pass
+
+def calculate_COVL():
+    pass
+
+
+
 if __name__ == '__main__':
     from data import AudioDataset
     snr = 0
@@ -56,4 +75,3 @@ if __name__ == '__main__':
     print(clean.shape)
     print(calculate_sisnr(clean, clean))
     print(calculate_sisnr(noisy, clean))
-
