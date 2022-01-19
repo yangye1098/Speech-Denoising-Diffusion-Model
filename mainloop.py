@@ -203,13 +203,13 @@ def mainloop(phase, args):
                 for b in range(batch_size):
                     name = loader.dataset.getName(name_index[b])
                     np.save('{}/output/{}.spec.npy'.format(result_path, name), output[b,:, :, :].cpu().numpy())
-                    torchaudio.save('{}/output/{}.spec.npy.wav'.format(result_path, name), output_sound[b, :].cpu(), sample_rate)
+                    torchaudio.save('{}/output/{}.spec.npy.wav'.format(result_path, name), torch.unsqueeze(output_sound[b, :].cpu(), 0), sample_rate)
                     np.save(
                         '{}/clean/{}.spec.npy'.format(result_path, name), clean[b,:, :, :].cpu().numpy())
-                    torchaudio.save('{}/clean/{}.spec.npy.wav'.format(result_path, name), clean_sound[b, :].cpu(), sample_rate)
+                    torchaudio.save('{}/clean/{}.spec.npy.wav'.format(result_path, name), torch.unsqueeze(clean_sound[b, :].cpu(), 0), sample_rate)
                     np.save(
                         '{}/noisy/{}.spec.npy'.format(result_path, name), noisy[b,:, :, :].cpu().numpy())
-                    torchaudio.save('{}/noisy/{}.spec.npy.wav'.format(result_path, name), noisy_sound[b, :].cpu(), sample_rate)
+                    torchaudio.save('{}/noisy/{}.spec.npy.wav'.format(result_path, name), torch.unsqueeze(noisy_sound[b, :].cpu(), 0), sample_rate)
 
 
             elif datatype == '.mel.npy':
