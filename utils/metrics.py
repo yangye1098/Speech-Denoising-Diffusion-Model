@@ -1,6 +1,6 @@
 import torch
-from torchmetrics.functional import pesq
-from torchmetrics.functional import stoi
+# from torchmetrics.functional import pesq
+# from torchmetrics.functional import stoi
 
 
 def calculate_sisnr(s_hat, s):
