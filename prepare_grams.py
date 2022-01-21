@@ -2,6 +2,7 @@ import argparse
 import utils.config as Config
 import numpy as np
 import torch
+import torch.nn.functional as F
 import torchaudio
 
 from glob import glob
@@ -36,6 +37,7 @@ def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_
 
         sound_len = sound.shape[1]
         # cut the audio into chunks
+        # zero pad the end to utilize the full audio
         chunk_idx = 0
         while (chunk_idx + 1)*T < sound_len:
             snippet = torch.squeeze(sound[:, chunk_idx*T: (chunk_idx+1)*T])
@@ -52,11 +54,21 @@ def main(dir, encoder_type, datatype, N, L, stride, T, sample_rate=8000, expand_
                 grams_normalized = transform(torch.squeeze(snippet))
                 if grams_normalized.min() < 0 or grams_normalized.max() > 1:
                     raise ValueError(f'Out of Range: min:{grams_normalized.min()}, max:{grams_normalized.max()}')
-
-                np.save(f'{filename}_{chunk_idx}{datatype}', grams_normalized.cpu().numpy())
+                filename_noext = filename.rsplit('.', 1)[0]
+                np.save(f'{filename_noext}_{chunk_idx}{datatype}', grams_normalized.cpu().numpy())
 
             chunk_idx = chunk_idx + 1
 
+        if not debug  :
+            # (chunk_idx + 1)*T >= sound_len
+            snippet = torch.squeeze(sound[:, chunk_idx*T: sound_len])
+            len_to_pad = (chunk_idx+1)*T - sound_len
+            snippet = F.pad( snippet, (0, len_to_pad), 'constant', 0)
+            grams_normalized = transform(torch.squeeze(snippet))
+            if grams_normalized.min() < 0 or grams_normalized.max() > 1:
+                raise ValueError(f'Out of Range: min:{grams_normalized.min()}, max:{grams_normalized.max()}')
+            filename_noext = filename.rsplit('.', 1)[0]
+            np.save(f'{filename_noext}_{chunk_idx}{datatype}', grams_normalized.cpu().numpy())
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt

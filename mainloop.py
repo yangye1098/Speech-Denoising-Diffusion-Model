@@ -184,7 +184,7 @@ def mainloop(phase, args):
             #for iter in range(0, sample_num):
 
             if datatype == '.wav':
-                for b in range(batch_size):
+                for b in range(clean.shape[0]):
                     name = loader.dataset.getName(name_index[b])
                     torchaudio.save('{}/output/{}.wav'.format(result_path, name), output[b, :, :], sample_rate)
                     torchaudio.save('{}/clean/{}.wav'.format(result_path, name), clean[b, :, :], sample_rate)
@@ -200,7 +200,7 @@ def mainloop(phase, args):
                 noisy_sound = gram_decoder(noisy)
                 metric_vec[idx] = Metrics.calculate_sisnr(output_sound, clean_sound)
 
-                for b in range(batch_size):
+                for b in range(clean.shape[0]):
                     name = loader.dataset.getName(name_index[b])
                     np.save('{}/output/{}.spec.npy'.format(result_path, name), output[b,:, :, :].cpu().numpy())
                     torchaudio.save('{}/output/{}.spec.npy.wav'.format(result_path, name), torch.unsqueeze(output_sound[b, :].cpu(), 0), sample_rate)
@@ -213,7 +213,7 @@ def mainloop(phase, args):
 
 
             elif datatype == '.mel.npy':
-                for b in range(batch_size):
+                for b in range(clean.shape[0]):
                     name = loader.dataset.getName(name_index[b])
                     save_image(torch.flip(output[b, :, :, :], [1]), '{}/output/{}.png'.format(result_path, name))
                     save_image(

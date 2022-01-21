@@ -59,6 +59,7 @@ class OutputDataset(AudioDataset):
 
         self.noisy_path = Path('{}/noisy'.format(dataroot))
         self.output_path = Path('{}/output'.format(dataroot))
+        self.inventory = sorted(self.inventory)
 
 
     def __len__(self):
