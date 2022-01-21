@@ -48,7 +48,8 @@ class AudioDataset(Dataset):
         return clean, noisy, index
 
     def getName(self, idx):
-        return self.inventory[idx]
+        filename_noext = self.inventory[idx].lsplit('.', 1)[0]
+        return filename_noext
 
 
 
